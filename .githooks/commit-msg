@@ -3,8 +3,12 @@
 # Licensed under the Apache License, Version 2.0.
 # Author: Prof. Shahab Anbarjafari <shb@3sholding.com>
 #
-# Refuses a commit that would put anyone other than the sole author into the
-# history, either as an identity or as an attribution trailer.
+# Keeps the history single authored, whatever is driving git.
+#
+# An attribution trailer is stripped rather than refused, because editors and agents
+# append one automatically and a refusal there would only block the commit without
+# removing the trailer. Anything a human had to type deliberately, a wrong identity or
+# a tool credit written into prose, is refused so it gets fixed at the source.
 #
 # Enable it once per clone:
 #
@@ -15,6 +19,7 @@ set -eu
 MESSAGE_FILE="$1"
 EXPECTED_NAME="Prof. Shahab Anbarjafari"
 EXPECTED_EMAIL="shb@3sholding.com"
+TRAILERS='^[[:space:]]*(co-authored-by|signed-off-by|assisted-by|reviewed-by|helped-by|generated-by|created-by)[[:space:]]*:'
 FAILED=0
 
 fail() {
@@ -22,7 +27,7 @@ fail() {
 	FAILED=1
 }
 
-# Identity. Author and committer must both be the sole author, and must match.
+# Identity. Author and committer must both be the sole author.
 for role in AUTHOR COMMITTER; do
 	name=$(eval "printf '%s' \"\${GIT_${role}_NAME:-}\"")
 	email=$(eval "printf '%s' \"\${GIT_${role}_EMAIL:-}\"")
@@ -35,15 +40,22 @@ for role in AUTHOR COMMITTER; do
 	fi
 done
 
-# Attribution trailers, in any casing.
-if grep -Eiq '^[[:space:]]*(co-authored-by|signed-off-by|assisted-by|reviewed-by|helped-by)[[:space:]]*:' \
-	"$MESSAGE_FILE"; then
-	fail "the message carries an attribution trailer. There is one author here."
+# Attribution trailers: strip them, then drop the blank lines they leave behind.
+if grep -Eiq "$TRAILERS" "$MESSAGE_FILE"; then
+	stripped="${MESSAGE_FILE}.solo"
+	grep -Eiv "$TRAILERS" "$MESSAGE_FILE" >"$stripped" || true
+	awk '{ line[NR] = $0 }
+	     END {
+	         last = NR
+	         while (last > 0 && line[last] ~ /^[[:space:]]*$/) last--
+	         for (i = 1; i <= last; i++) print line[i]
+	     }' "$stripped" >"$MESSAGE_FILE"
+	rm -f "$stripped"
+	printf 'note: removed an attribution trailer. This repository has one author.\n' >&2
 fi
 
-# Tool credits, which are the same problem written as prose. Only attribution
-# phrasing counts: a model named as a subject of the work, for example "gpt-4o", is
-# ordinary content in this repository and must still be allowed.
+# Tool credits written as prose. Attribution phrasing only: a model named as the
+# subject of a change, "fix the gpt-4o cost calculation", is ordinary content here.
 if grep -Eiq 'generated (with|by)|co-?(written|created|developed) (with|by)|(written|created|authored|produced|implemented|assisted) (with|by) +(an? +)?(ai|llm|assistant|agent|claude|copilot|chatgpt|cursor|gemini|codex)' \
 	"$MESSAGE_FILE"; then
 	fail "the message credits a tool. Describe what changed and why, not what wrote it."

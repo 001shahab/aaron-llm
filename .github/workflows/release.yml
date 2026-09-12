@@ -1,21 +1,52 @@
 name: Release
 
-# Publishes to PyPI with trusted publishing. There is no long lived PyPI token
-# in this repository; the OIDC identity of this workflow is the credential.
+# Publishes to PyPI when a v* tag is pushed, using trusted publishing: PyPI verifies
+# this workflow's OIDC identity, so no API token is stored anywhere.
+#
+# One time setup on PyPI, under the project's Publishing settings, add a publisher:
+#   owner: 001shahab   repository: aaron-llm
+#   workflow: release.yml   environment: pypi
+#
+# Then: git tag -a v0.1.0 -m "aaron-llm 0.1.0" && git push origin v0.1.0
 
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+env:
+  FORCE_COLOR: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
 jobs:
+  gates:
+    name: gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install locked dev dependencies
+        run: pip install --require-hashes -r requirements-dev.lock
+      - name: Install package without dependencies
+        run: pip install --no-deps -e .
+      - run: ruff format --check .
+      - run: ruff check .
+      - run: mypy --strict src/aaron
+      - run: pytest --cov=aaron --cov-fail-under=90
+      - name: Assert exactly two runtime dependencies and no vendor SDKs
+        run: python scripts/check_dependencies.py
+      - name: Refuse to release a price nobody verified
+        run: python -m aaron.registry --check
+
   build:
     name: build distributions
     runs-on: ubuntu-latest
-    outputs:
-      hashes: ${{ steps.hash.outputs.hashes }}
+    needs: [gates]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,9 +55,15 @@ jobs:
       - run: pip install build twine
       - run: python -m build
       - run: twine check --strict dist/*
-      - name: Record artifact digests
-        id: hash
-        run: echo "hashes=$(sha256sum dist/* | base64 -w0)" >> "$GITHUB_OUTPUT"
+      - name: Assert the tag matches the packaged version
+        run: |
+          version=$(python -c "import re,pathlib; print(re.search(r'__version__ = \"([^\"]+)\"', pathlib.Path('src/aaron/_version.py').read_text()).group(1))")
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$version" != "$tag" ]; then
+            echo "tag $tag does not match __version__ $version" >&2
+            exit 1
+          fi
+        if: startsWith(github.ref, 'refs/tags/')
       - uses: actions/upload-artifact@v4
         with:
           name: distributions
@@ -34,26 +71,17 @@ jobs:
 
   publish:
     name: publish to PyPI
-    needs: [build]
     runs-on: ubuntu-latest
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/')
     environment:
       name: pypi
       url: https://pypi.org/p/aaron-llm
     permissions:
-      id-token: write # trusted publishing
-      attestations: write # build provenance
-      contents: read
+      id-token: write # trusted publishing, in place of a stored token
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: distributions
           path: dist/
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-path: dist/*
-      - name: Publish
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          attestations: true
-          print-hash: true
+      - uses: pypa/gh-action-pypi-publish@release/v1

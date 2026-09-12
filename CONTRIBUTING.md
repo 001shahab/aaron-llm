@@ -116,6 +116,22 @@ did, not just that it is fixed.
 By contributing you agree that your contribution is licensed under the Apache License,
 Version 2.0, the same as the project.
 
+## Releasing
+
+`.github/workflows/release.yml` publishes to PyPI when a `v*` tag is pushed. It runs
+every gate first, refuses to build if the tag does not match `__version__`, and refuses
+to release a registry price with no `last_verified` date. Publication uses PyPI trusted
+publishing, so no API token is stored in this repository or in GitHub secrets: PyPI
+verifies the workflow's OIDC identity instead. That needs a one time publisher entry on
+PyPI naming the owner, the repository, `release.yml` and the `pypi` environment.
+
+```sh
+# bump src/aaron/_version.py, move the Unreleased section of CHANGELOG.md under the
+# new version, then:
+git tag -a v0.1.1 -m "aaron-llm 0.1.1"
+git push origin main --tags
+```
+
 ## Where decisions are recorded
 
 If you find yourself choosing between two reasonable designs, take the one with the

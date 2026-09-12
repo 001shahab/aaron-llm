@@ -9,6 +9,13 @@ and Ollama through one interface, and records what happened on every call.
 pip install aaron-llm
 ```
 
+0.1.0 is tagged but not on PyPI yet, so until it is published, install from the
+repository:
+
+```sh
+pip install "git+https://github.com/001shahab/aaron-llm@v0.1.0"
+```
+
 Two runtime dependencies, `httpx` and `pydantic`. No vendor SDKs. One readable file
 per provider. The whole library is small enough that a security reviewer can read it
 in an afternoon, which is the point.
