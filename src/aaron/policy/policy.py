@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from ..errors import ConfigurationError, InvalidRequest, PolicyViolation
-from ..registry import Registry, glob_match
+from ..registry import CAPABILITY_NAMES, Registry, glob_match
 from ..request import ChatRequest, estimate_tokens, split_model
 from ..types import ContentPart, Message, TextPart
 from . import residency as residency_module
@@ -98,6 +98,12 @@ class Policy:
         if self.on_violation not in ("raise", "fallback"):
             raise ConfigurationError(
                 f"on_violation must be 'raise' or 'fallback', got {self.on_violation!r}"
+            )
+        unknown = sorted(set(self.require_capabilities) - CAPABILITY_NAMES)
+        if unknown:
+            raise ConfigurationError(
+                f"unknown capability names in require_capabilities: {', '.join(unknown)}. "
+                f"Known names: {', '.join(sorted(CAPABILITY_NAMES))}"
             )
         if self.on_violation == "fallback" and not self.fallback:
             raise ConfigurationError(

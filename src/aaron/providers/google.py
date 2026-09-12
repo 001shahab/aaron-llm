@@ -200,7 +200,7 @@ class GoogleProvider(BaseProvider):
             model=req.model,
             resolved_model=str(payload.get("modelVersion") or req.model_name),
             message=Message(role="assistant", content=list(parts), tool_calls=calls),
-            stop_reason=normalise_stop_reason(candidate.get("finishReason"), mapping=_STOP_REASONS),
+            stop_reason=_stop_reason(candidate.get("finishReason"), calls),
             usage=usage,
             cost=req.registry.cost(
                 req.model, usage, estimated=payload.get("usageMetadata") is None
@@ -238,11 +238,7 @@ class GoogleProvider(BaseProvider):
                 numbered = call if call.id else call.model_copy(update={"id": f"call_{index}"})
                 yield _add(assembler, ToolCallEndEvent(call=numbered))
             if candidate.get("finishReason"):
-                assembler.note(
-                    stop_reason=normalise_stop_reason(
-                        candidate["finishReason"], mapping=_STOP_REASONS
-                    )
-                )
+                assembler.note(stop_reason=_stop_reason(candidate["finishReason"], calls))
 
     def error_fields(
         self, payload: dict[str, Any] | None, text: str
@@ -264,6 +260,12 @@ class GoogleProvider(BaseProvider):
 def _add(assembler: StreamAssembler, event: StreamEvent) -> StreamEvent:
     assembler.add(event)
     return event
+
+
+def _stop_reason(raw: Any, calls: list[ToolCall]) -> StopReason:
+    """A function call means tool_use, whatever Gemini reported as its finish reason."""
+    reason = normalise_stop_reason(raw, mapping=_STOP_REASONS)
+    return "tool_use" if calls and reason in ("stop", "other") else reason
 
 
 def _split_parts(content: dict[str, Any]) -> tuple[list[TextPart], list[ToolCall], str]:

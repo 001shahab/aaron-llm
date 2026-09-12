@@ -129,7 +129,7 @@ class AuditLog:
 
     def __init__(self, sink: Sink | None = None, **tags: str) -> None:
         self.sink: Sink = sink or NullSink()
-        self.tags: dict[str, str] = dict(tags)
+        self.tags: dict[str, str] = {key: str(value) for key, value in tags.items()}
         self._failed = False
 
     @property

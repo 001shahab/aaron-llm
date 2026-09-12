@@ -79,6 +79,12 @@ M = TypeVar("M", bound=BaseModel)
 
 KeySource = str | Callable[[], str]
 
+# What the client stores. A caller's plain string is wrapped at once, so nothing here
+# holds a bare credential where a debugger, a crash reporter that captures frame
+# locals, or a repr of the client's attributes could find it. A callable is kept as
+# given and resolved per call, which is how a rotating credential is supported.
+StoredKey = SecretValue | Callable[[], str]
+
 CONFIG_FILE = "aaron.toml"
 
 # How many times extract() may show a model its validation errors and ask again.
@@ -222,7 +228,10 @@ class _ClientBase:
         record_content: bool = False,
     ) -> None:
         self._file_config = _load_config_file(config_file)
-        self._api_keys: dict[str, KeySource] = dict(api_keys or {})
+        self._api_keys: dict[str, StoredKey] = {
+            name: source if callable(source) else SecretValue(source)
+            for name, source in (api_keys or {}).items()
+        }
         self._base_urls: dict[str, str] = {
             **_mapping(self._file_config.get("base_urls")),
             **(base_urls or {}),
@@ -334,7 +343,7 @@ class _ClientBase:
         """
         source = self._api_keys.get(provider.name)
         if source is not None:
-            value = source() if callable(source) else source
+            value = source() if callable(source) else source.get()
             if not value:
                 raise MissingAPIKey(
                     f"the api_keys entry for {provider.name!r} returned an empty value",
