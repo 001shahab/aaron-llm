@@ -209,10 +209,12 @@ class OllamaProvider(BaseProvider):
         """Map an Ollama error, turning a missing model into actionable advice."""
         error = super().map_error(status, payload, text)
         message = error.message.lower()
-        if "not found" in message and "pull" not in message:
+        # Ollama's own wording is "try pulling it first", which never names the
+        # command, so the check is for the command rather than for the word "pull".
+        if "not found" in message and "ollama pull" not in message:
             error.message = (
-                f"{error.message}. Pull it first with 'ollama pull <model>' "
-                "and check 'ollama list' for what is available."
+                f"{error.message}. Run 'ollama pull <model>' to download it, "
+                "or 'ollama list' to see what is already installed."
             )
         return error
 

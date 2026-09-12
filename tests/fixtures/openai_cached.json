@@ -1,0 +1,27 @@
+{
+  "id": "chatcmpl-Bx7fake000000000000003",
+  "object": "chat.completion",
+  "created": 1772000002,
+  "model": "o3-2025-04-16",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "4"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1200,
+    "completion_tokens": 210,
+    "total_tokens": 1410,
+    "prompt_tokens_details": {
+      "cached_tokens": 1024
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 192
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Tallinn is the capital of Estonia."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "safetyRatings": []
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 12,
+    "candidatesTokenCount": 8,
+    "totalTokenCount": 20
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "fake-response-id-0001"
+}

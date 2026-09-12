@@ -1,0 +1,16 @@
+{
+  "model": "llama3.1",
+  "created_at": "2026-02-25T10:00:00.000000Z",
+  "message": {
+    "role": "assistant",
+    "content": "Tallinn is the capital of Estonia."
+  },
+  "done_reason": "stop",
+  "done": true,
+  "total_duration": 1804000000,
+  "load_duration": 21000000,
+  "prompt_eval_count": 18,
+  "prompt_eval_duration": 120000000,
+  "eval_count": 9,
+  "eval_duration": 640000000
+}

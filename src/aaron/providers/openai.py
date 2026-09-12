@@ -15,7 +15,7 @@ import json
 from collections.abc import Iterator
 from typing import Any
 
-from ..errors import InvalidRequest
+from ..errors import ProviderError
 from ..request import ChatRequest, estimate_output_tokens, estimate_tokens
 from ..stream import (
     StreamAssembler,
@@ -178,7 +178,7 @@ class OpenAIProvider(BaseProvider):
                     {
                         "type": "file",
                         "file": {
-                            "filename": "document.pdf",
+                            "filename": part.name or "document.pdf",
                             "file_data": f"data:{part.media_type};base64,{part.data}",
                         },
                     }
@@ -197,12 +197,12 @@ class OpenAIProvider(BaseProvider):
             The normalised response, with the untouched payload on ``raw``.
 
         Raises:
-            InvalidRequest: The payload carries no choices.
+            ProviderError: The payload carries no choices.
             ToolArgumentError: A tool call's arguments are not a JSON object.
         """
         choices = payload.get("choices") or []
         if not choices:
-            raise InvalidRequest(
+            raise ProviderError(
                 "OpenAI returned no choices", provider=self.name, model=req.model, raw=payload
             )
         choice = choices[0]

@@ -20,7 +20,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .errors import InvalidRequest
 
@@ -106,6 +106,7 @@ class DocumentPart(_Frozen):
     type: Literal["document"] = "document"
     media_type: str
     data: str
+    name: str | None = None
 
 
 ContentPart = Annotated[TextPart | ImagePart | DocumentPart, Field(discriminator="type")]
@@ -117,6 +118,14 @@ class ToolCall(_Frozen):
     id: str
     name: str
     arguments: dict[str, Any]
+
+
+def _blob_name(source: str | bytes | Path) -> str | None:
+    """The file name, when the attachment came from a path we can name."""
+    if isinstance(source, bytes):
+        return None
+    name = Path(source).name
+    return name if name and Path(source).suffix else None
 
 
 def _read_blob(source: str | bytes | Path, *, kind: str) -> tuple[str, str]:
@@ -182,9 +191,11 @@ class Message(BaseModel):
 
     Prefer the classmethod constructors over building this directly; they accept
     plain strings and file paths and handle base64 encoding and media sniffing.
+
+    Frozen, like every type here. Use ``model_copy(update=...)`` to derive a variant.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     role: Role
     content: list[ContentPart] = Field(default_factory=list)
@@ -233,7 +244,9 @@ class Message(BaseModel):
             parts.append(ImagePart(media_type=media_type, data=data))
         for document in documents:
             media_type, data = _read_blob(document, kind="document")
-            parts.append(DocumentPart(media_type=media_type, data=data))
+            parts.append(
+                DocumentPart(media_type=media_type, data=data, name=_blob_name(document))
+            )
         if not parts:
             raise InvalidRequest("a user message needs text, an image or a document")
         return cls(role="user", content=parts)
@@ -342,11 +355,30 @@ def _resolve_refs(node: Any, defs: dict[str, Any], *, depth: int) -> Any:
 class Tool(BaseModel):
     """A function the model may call."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: str
     description: str = ""
     parameters: dict[str, Any] = Field(default_factory=lambda: {"type": "object", "properties": {}})
+
+    @field_validator("name")
+    @classmethod
+    def _check_name(cls, value: str) -> str:
+        """Reject a name no provider would accept, here rather than in five providers."""
+        if not _TOOL_NAME_RE.match(value):
+            raise InvalidRequest(
+                f"tool name {value!r} is invalid: use 1 to 64 characters of letters, "
+                "digits, underscore or hyphen"
+            )
+        return value
+
+    @field_validator("parameters")
+    @classmethod
+    def _check_parameters(cls, value: dict[str, Any]) -> dict[str, Any]:
+        """Reject a schema that is not an object, which every provider requires."""
+        if value.get("type", "object") != "object":
+            raise InvalidRequest("tool parameters must be a JSON Schema object")
+        return value
 
     @classmethod
     def from_function(cls, fn: Callable[..., Any]) -> Tool:
@@ -365,13 +397,24 @@ class Tool(BaseModel):
         signature = inspect.signature(fn)
         hints = typing.get_type_hints(fn)
         summary, arg_docs = _parse_docstring(inspect.getdoc(fn) or "")
+        if not summary:
+            raise InvalidRequest(
+                f"{fn.__name__} needs a docstring: its summary is the description the "
+                "model uses to decide whether to call the tool"
+            )
 
         properties: dict[str, Any] = {}
         required: list[str] = []
         for name, parameter in signature.parameters.items():
             if parameter.kind in (parameter.VAR_POSITIONAL, parameter.VAR_KEYWORD):
                 continue
-            schema = _json_schema_for(hints.get(name, parameter.annotation))
+            annotation = hints.get(name, parameter.annotation)
+            if annotation is inspect.Parameter.empty:
+                raise InvalidRequest(
+                    f"parameter {name!r} of {fn.__name__} has no type annotation, so its "
+                    "schema would be a guess"
+                )
+            schema = _json_schema_for(annotation)
             if name in arg_docs:
                 schema["description"] = arg_docs[name]
             properties[name] = schema
@@ -384,19 +427,29 @@ class Tool(BaseModel):
         return cls(name=fn.__name__, description=summary, parameters=parameters)
 
     @classmethod
-    def from_model(cls, name: str, description: str, model: type[BaseModel]) -> Tool:
+    def from_model(
+        cls, model: type[BaseModel], *, name: str | None = None, description: str | None = None
+    ) -> Tool:
         """Build a tool from a pydantic model.
 
         Args:
-            name: Tool name the model will call.
-            description: What the tool does.
-            model: The model describing the arguments.
+            model: The model describing the arguments. Its class name and docstring
+                are used unless overridden.
+            name: Tool name the model will call. Defaults to the class name.
+            description: What the tool does. Defaults to the class docstring.
 
         Returns:
-            A tool whose ``parameters`` is the model's inlined JSON Schema.
+            A tool whose ``parameters`` is the model's inlined JSON Schema, with every
+            ``$ref`` resolved because several providers reject them.
         """
-        return cls(name=name, description=description, parameters=_inline_model_schema(model))
+        return cls(
+            name=name or model.__name__,
+            description=description or (inspect.getdoc(model) or "").strip(),
+            parameters=_inline_model_schema(model),
+        )
 
+
+_TOOL_NAME_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
 _ARG_RE = re.compile(r"^(\*{0,2}\w+)\s*(?:\([^)]*\))?\s*:\s*(.*)$")
 

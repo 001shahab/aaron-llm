@@ -42,6 +42,7 @@ from .errors import (
     InvalidRequest,
     MissingAPIKey,
     PolicyViolation,
+    ProviderError,
     RateLimitError,
     TransportError,
 )
@@ -1045,8 +1046,9 @@ def _decode(call: _Call, response: httpx.Response) -> dict[str, Any]:
     return payload
 
 
-def _bad_body(call: _Call, response: httpx.Response, detail: str) -> InvalidRequest:
-    return InvalidRequest(
+def _bad_body(call: _Call, response: httpx.Response, detail: str) -> ProviderError:
+    """A successful status with a body we cannot use is the provider's fault, not ours."""
+    return ProviderError(
         f"{call.provider.name} returned {detail}",
         provider=call.provider.name,
         model=call.req.model,

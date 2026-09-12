@@ -1,0 +1,22 @@
+{
+  "id": "msg_01Fake0000000000000000003",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-opus-4-1-20250805",
+  "content": [
+    {
+      "type": "thinking",
+      "thinking": "The user asked for a capital city.",
+      "signature": "fakesig"
+    },
+    {
+      "type": "text",
+      "text": "Tallinn."
+    }
+  ],
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 20,
+    "output_tokens": 40
+  }
+}

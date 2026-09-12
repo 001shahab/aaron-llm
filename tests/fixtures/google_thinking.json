@@ -1,0 +1,27 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Working through it.",
+            "thought": true
+          },
+          {
+            "text": "Tallinn."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 12,
+    "candidatesTokenCount": 30,
+    "thoughtsTokenCount": 22,
+    "totalTokenCount": 42
+  },
+  "modelVersion": "gemini-2.5-pro"
+}

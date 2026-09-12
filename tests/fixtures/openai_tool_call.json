@@ -1,0 +1,31 @@
+{
+  "id": "chatcmpl-Bx7fake000000000000002",
+  "object": "chat.completion",
+  "created": 1772000001,
+  "model": "gpt-4o-2024-11-20",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_fake0000000000000001",
+            "type": "function",
+            "function": {
+              "name": "get_weather",
+              "arguments": "{\"city\":\"Tallinn\",\"units\":\"c\"}"
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 62,
+    "completion_tokens": 19,
+    "total_tokens": 81
+  }
+}

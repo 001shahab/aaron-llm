@@ -13,10 +13,10 @@ server sent event decoder works as for the other providers.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from typing import Any
 
-from ..errors import InvalidRequest
+from ..errors import ProviderError
 from ..request import ChatRequest, merge_consecutive
 from ..stream import (
     StreamAssembler,
@@ -92,9 +92,13 @@ class GoogleProvider(BaseProvider):
         elif req.json_mode:
             generation["responseMimeType"] = "application/json"
 
+        # Gemini pairs a result with its call by function name, not by an id, so the
+        # name has to be recovered from the assistant turn that made the call.
+        tool_names = {call.id: call.name for m in req.messages for call in m.tool_calls}
         body: dict[str, Any] = {
             "contents": [
-                self.encode(message) for message in merge_consecutive(req.non_system_messages)
+                self.encode(message, tool_names)
+                for message in merge_consecutive(req.non_system_messages)
             ]
         }
         if generation:
@@ -133,15 +137,24 @@ class GoogleProvider(BaseProvider):
             stream=stream,
         )
 
-    def encode(self, message: Message) -> dict[str, Any]:
-        """Encode one message into a Gemini ``contents`` entry."""
+    def encode(self, message: Message, tool_names: Mapping[str, str]) -> dict[str, Any]:
+        """Encode one message into a Gemini ``contents`` entry.
+
+        Args:
+            message: The message to encode.
+            tool_names: Call id to function name, used to label a tool result.
+
+        Returns:
+            One ``contents`` entry.
+        """
         if message.role == "tool":
+            call_id = message.tool_call_id or ""
             return {
                 "role": "user",
                 "parts": [
                     {
                         "functionResponse": {
-                            "name": message.name or message.tool_call_id or "tool",
+                            "name": message.name or tool_names.get(call_id) or call_id or "tool",
                             "response": _wrap_response(message.text),
                         }
                     }
@@ -172,7 +185,7 @@ class GoogleProvider(BaseProvider):
                 raise self.map_error(
                     400, {"error": {"message": f"prompt blocked by safety filter: {blocked}"}}, ""
                 )
-            raise InvalidRequest(
+            raise ProviderError(
                 "Gemini returned no candidates", provider=self.name, model=req.model, raw=payload
             )
 

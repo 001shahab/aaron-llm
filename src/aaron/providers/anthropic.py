@@ -16,7 +16,7 @@ import json
 from collections.abc import Iterator
 from typing import Any
 
-from ..errors import InvalidRequest
+from ..errors import ProviderError
 from ..request import ChatRequest, merge_consecutive
 from ..stream import (
     StreamAssembler,
@@ -42,6 +42,8 @@ from .base import BaseProvider, merge_options, normalise_stop_reason
 
 API_VERSION = "2023-06-01"
 
+PDF_BETA = "pdfs-2024-09-25"
+
 # Anthropic requires max_tokens, so a caller who omits it gets a sane ceiling.
 DEFAULT_MAX_TOKENS = 4096
 
@@ -53,6 +55,11 @@ _STOP_REASONS: dict[str, StopReason] = {
     "refusal": "content_filter",
     "pause_turn": "other",
 }
+
+
+def _has_document(req: ChatRequest) -> bool:
+    """Whether any message carries a PDF, which needs the documents beta header."""
+    return any(isinstance(part, DocumentPart) for m in req.messages for part in m.content)
 
 
 class AnthropicProvider(BaseProvider):
@@ -115,8 +122,9 @@ class AnthropicProvider(BaseProvider):
             headers={
                 "content-type": "application/json",
                 "anthropic-version": API_VERSION,
-                "anthropic-beta": "pdfs-2024-09-25",
-                "request-id": req.request_id,
+                # Only opt into a beta when the request actually needs it.
+                **({"anthropic-beta": PDF_BETA} if _has_document(req) else {}),
+                "x-request-id": req.request_id,
                 **req.extra_headers,
             },
             body=merge_options(body, req.provider_options),
@@ -182,11 +190,11 @@ class AnthropicProvider(BaseProvider):
             The normalised response. Thinking blocks are preserved on ``raw``.
 
         Raises:
-            InvalidRequest: The payload has no content array.
+            ProviderError: The payload has no content array.
         """
         blocks = payload.get("content")
         if not isinstance(blocks, list):
-            raise InvalidRequest(
+            raise ProviderError(
                 "Anthropic returned no content array",
                 provider=self.name,
                 model=req.model,
