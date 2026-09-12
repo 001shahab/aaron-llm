@@ -209,9 +209,7 @@ class TestContract:
         assert [e.text for e in events if isinstance(e, TextEvent)] == ["Tal", "linn"]
 
     @respx.mock
-    def test_streamed_and_whole_text_agree(
-        self, case: Case, keys_for_all: dict[str, str]
-    ) -> None:
+    def test_streamed_and_whole_text_agree(self, case: Case, keys_for_all: dict[str, str]) -> None:
         # The assembled response must equal the concatenation of the text events.
         respx.route(method="POST").mock(return_value=httpx.Response(200, text=case.stream_body))
         events = list(build(case, keys_for_all).stream(case.model, "capital?"))
@@ -243,9 +241,7 @@ class TestContract:
         assert call.arguments == {"city": "Tallinn", "units": "c"}
 
     @respx.mock
-    def test_a_tool_result_can_be_sent_back(
-        self, case: Case, keys_for_all: dict[str, str]
-    ) -> None:
+    def test_a_tool_result_can_be_sent_back(self, case: Case, keys_for_all: dict[str, str]) -> None:
         # Round tripping a tool call must produce a body the provider would accept,
         # which here means it must at least build and send without raising.
         route = respx.route(method="POST").mock(
@@ -266,9 +262,7 @@ class TestContract:
     def test_the_system_prompt_is_accepted_in_some_form(
         self, case: Case, keys_for_all: dict[str, str]
     ) -> None:
-        route = respx.route(method="POST").mock(
-            return_value=httpx.Response(200, json=case.payload)
-        )
+        route = respx.route(method="POST").mock(return_value=httpx.Response(200, json=case.payload))
         build(case, keys_for_all).chat(
             case.model, [Message.system("Be brief."), Message.user("hi")]
         )
@@ -279,9 +273,7 @@ class TestContract:
     def test_dry_run_builds_a_request_without_sending_anything(
         self, case: Case, keys_for_all: dict[str, str]
     ) -> None:
-        route = respx.route(method="POST").mock(
-            return_value=httpx.Response(200, json=case.payload)
-        )
+        route = respx.route(method="POST").mock(return_value=httpx.Response(200, json=case.payload))
         prepared = build(case, keys_for_all).dry_run(case.model, "hi")
 
         assert not route.called, "dry_run must never send a request"
@@ -320,7 +312,8 @@ class TestContract:
     ) -> None:
         respx.route(method="POST").mock(return_value=httpx.Response(200, text=case.stream_body))
         sync_events = [
-            e.text for e in build(case, keys_for_all).stream(case.model, "hi")
+            e.text
+            for e in build(case, keys_for_all).stream(case.model, "hi")
             if isinstance(e, TextEvent)
         ]
 

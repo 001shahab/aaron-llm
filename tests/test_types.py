@@ -29,7 +29,6 @@ class TestSecretValue:
         assert "sk-super-secret-value" not in repr(secret)
         assert "sk-super-secret-value" not in str(secret)
         assert "sk-super-secret-value" not in f"{secret}"
-        assert "sk-super-secret-value" not in "{}".format(secret)
 
     def test_get_returns_the_real_value(self) -> None:
         assert SecretValue("sk-abc").get() == "sk-abc"
@@ -74,7 +73,7 @@ class TestMessageConstructors:
 
     def test_messages_are_frozen(self) -> None:
         message = Message.user("hello")
-        with pytest.raises(Exception, match="frozen|immutable"):
+        with pytest.raises(Exception, match=r"frozen|immutable"):
             message.role = "system"  # type: ignore[misc]
 
 

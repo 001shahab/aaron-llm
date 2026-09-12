@@ -28,9 +28,7 @@ OLLAMA_URL = "http://localhost:11434/api/chat"
 
 def client(policy: Policy, **kwargs: object) -> Aaron:
     """A client under one policy, with a key for every remote provider."""
-    return Aaron(
-        api_keys={"openai": "k", "anthropic": "k", "google": "k"}, policy=policy, **kwargs
-    )
+    return Aaron(api_keys={"openai": "k", "anthropic": "k", "google": "k"}, policy=policy, **kwargs)
 
 
 class TestAllowAndDeny:
@@ -129,9 +127,11 @@ class TestCapabilities:
     @respx.mock
     def test_a_present_capability_passes(self) -> None:
         respx.post(OPENAI_URL).mock(return_value=httpx.Response(200, json=load("openai_chat")))
-        assert client(Policy(require_capabilities=["tools", "vision"])).chat(
-            "openai/gpt-4o", "hi"
-        ).text
+        assert (
+            client(Policy(require_capabilities=["tools", "vision"]))
+            .chat("openai/gpt-4o", "hi")
+            .text
+        )
 
     def test_an_unknown_capability_name_is_a_configuration_error(self) -> None:
         with pytest.raises(ConfigurationError):

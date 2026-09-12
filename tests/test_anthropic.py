@@ -37,9 +37,7 @@ class TestRequestShape:
     """The Messages API wire format."""
 
     @respx.mock
-    def test_the_credential_uses_x_api_key_not_bearer(
-        self, client: Aaron, api_key: str
-    ) -> None:
+    def test_the_credential_uses_x_api_key_not_bearer(self, client: Aaron, api_key: str) -> None:
         route = respx.post(URL).mock(return_value=httpx.Response(200, json=load("anthropic_chat")))
         client.chat("anthropic/claude-sonnet-4-5", "hi")
         request = route.calls[0].request
@@ -82,9 +80,7 @@ class TestRequestShape:
     def test_consecutive_user_turns_are_merged(self, client: Aaron) -> None:
         # The API rejects two user turns in a row, so the provider merges them.
         route = respx.post(URL).mock(return_value=httpx.Response(200, json=load("anthropic_chat")))
-        client.chat(
-            "anthropic/claude-sonnet-4-5", [Message.user("first"), Message.user("second")]
-        )
+        client.chat("anthropic/claude-sonnet-4-5", [Message.user("first"), Message.user("second")])
         messages = json.loads(route.calls[0].request.content)["messages"]
         assert len(messages) == 1
         assert [part["text"] for part in messages[0]["content"]] == ["first", "second"]
@@ -202,7 +198,11 @@ class TestResponseParsing:
     def test_a_bad_key_maps_to_authentication(self, client: Aaron) -> None:
         respx.post(URL).mock(
             return_value=httpx.Response(
-                401, json={"type": "error", "error": {"type": "authentication_error", "message": "bad"}}
+                401,
+                json={
+                    "type": "error",
+                    "error": {"type": "authentication_error", "message": "bad"},
+                },
             )
         )
         with pytest.raises(AuthenticationError):
@@ -228,11 +228,19 @@ class TestStreaming:
         ),
         (
             "content_block_start",
-            {"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}},
+            {
+                "type": "content_block_start",
+                "index": 0,
+                "content_block": {"type": "text", "text": ""},
+            },
         ),
         (
             "content_block_delta",
-            {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "Tal"}},
+            {
+                "type": "content_block_delta",
+                "index": 0,
+                "delta": {"type": "text_delta", "text": "Tal"},
+            },
         ),
         (
             "content_block_delta",
@@ -372,7 +380,9 @@ class TestStructuredOutput:
             }
         ]
         route = respx.post(URL).mock(return_value=httpx.Response(200, json=payload))
-        city = client.extract("anthropic/claude-sonnet-4-5", "capital of Estonia?", schema=self.City)
+        city = client.extract(
+            "anthropic/claude-sonnet-4-5", "capital of Estonia?", schema=self.City
+        )
 
         assert city.name == "Tallinn"
         assert city.country == "Estonia"

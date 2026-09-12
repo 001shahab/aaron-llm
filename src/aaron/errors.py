@@ -55,7 +55,7 @@ class AaronError(Exception):
         return f"{self.message} ({detail})" if detail else self.message
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.message!r})"
+        return f"{type(self).__name__}({str(self)!r})"
 
 
 class ConfigurationError(AaronError):

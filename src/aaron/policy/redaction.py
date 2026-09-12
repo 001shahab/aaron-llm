@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
+
+from ..errors import ConfigurationError
 
 
 @runtime_checkable
@@ -50,6 +52,21 @@ class RegexRedactor:
     replacement: str = "[REDACTED]"
     name: str = "regex"
     flags: int = 0
+    _compiled: re.Pattern[str] = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        """Compile once, so a bad pattern fails at load time rather than mid call.
+
+        Raises:
+            ConfigurationError: The pattern is not a valid regular expression.
+        """
+        try:
+            compiled = re.compile(self.pattern, self.flags)
+        except re.error as exc:
+            raise ConfigurationError(
+                f"redactor {self.name!r} has an invalid pattern: {exc}"
+            ) from exc
+        object.__setattr__(self, "_compiled", compiled)
 
     def redact(self, text: str) -> tuple[str, int]:
         """Apply the expression.
@@ -60,7 +77,7 @@ class RegexRedactor:
         Returns:
             The rewritten text and the number of replacements made.
         """
-        return re.subn(self.pattern, self.replacement, text, flags=self.flags)
+        return self._compiled.subn(self.replacement, text)
 
 
 @dataclass(frozen=True)
@@ -102,13 +119,13 @@ def build_redactor(spec: str | dict[str, object]) -> Redactor:
         The redactor.
 
     Raises:
-        ValueError: The name is not a shipped redactor, or the mapping has no
-            pattern.
+        ConfigurationError: The name is not a shipped redactor, the mapping has no
+            pattern, or the pattern is not a valid regular expression.
     """
     if isinstance(spec, str):
         builtin = _BY_NAME.get(spec.strip().lower())
         if builtin is None:
-            raise ValueError(
+            raise ConfigurationError(
                 f"unknown redactor {spec!r}. Available: {', '.join(sorted(_BY_NAME))}, "
                 "or give a mapping with a 'pattern' key."
             )
@@ -116,7 +133,7 @@ def build_redactor(spec: str | dict[str, object]) -> Redactor:
 
     pattern = spec.get("pattern")
     if not isinstance(pattern, str):
-        raise ValueError("a redactor mapping needs a string 'pattern' key")
+        raise ConfigurationError("a redactor mapping needs a string 'pattern' key")
     replacement = spec.get("replacement", "[REDACTED]")
     name = spec.get("name", "regex")
     return RegexRedactor(

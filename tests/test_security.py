@@ -131,9 +131,7 @@ class TestExceptions:
             client.chat("openai/gpt-4o", "hi")
         scan(info.value, info.value.__dict__)
 
-    def test_a_missing_key_error_does_not_quote_another_provider_key(
-        self, client: Aaron
-    ) -> None:
+    def test_a_missing_key_error_does_not_quote_another_provider_key(self, client: Aaron) -> None:
         with pytest.raises(MissingAPIKey) as info:
             client.chat("google/gemini-2.5-flash", "hi")
         scan(info.value)
@@ -208,9 +206,8 @@ class TestLogging:
         self, client: Aaron, caplog: pytest.LogCaptureFixture
     ) -> None:
         respx.post(OPENAI_URL).mock(return_value=httpx.Response(500, json={"error": {}}))
-        with caplog.at_level(logging.DEBUG):
-            with pytest.raises(AaronError):
-                client.chat("openai/gpt-4o", "hi")
+        with caplog.at_level(logging.DEBUG), pytest.raises(AaronError):
+            client.chat("openai/gpt-4o", "hi")
         assert FIXTURE_KEY not in caplog.text
 
     def test_the_library_logs_only_under_its_own_logger(self) -> None:
@@ -361,7 +358,9 @@ class TestRedactionActuallyPrecedesTransmission:
         route = respx.post(OPENAI_URL).mock(
             return_value=httpx.Response(200, json=load("openai_chat"))
         )
-        instance = Aaron(api_keys={"openai": FIXTURE_KEY}, policy=Policy(redactors=[EmailRedactor()]))
+        instance = Aaron(
+            api_keys={"openai": FIXTURE_KEY}, policy=Policy(redactors=[EmailRedactor()])
+        )
         instance.chat("openai/gpt-4o", Message.user("reach me at person@example.com"))
 
         assert "person@example.com" not in route.calls[0].request.content.decode()

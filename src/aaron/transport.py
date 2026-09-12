@@ -58,7 +58,7 @@ class TransportConfig:
         return httpx.Timeout(self.timeout, connect=self.connect_timeout)
 
     def with_overrides(
-        self, *, timeout: float | None, connect_timeout: float | None
+        self, *, timeout: float | None = None, connect_timeout: float | None = None
     ) -> TransportConfig:
         """Return a copy with per call timeout overrides applied."""
         changes: dict[str, Any] = {}

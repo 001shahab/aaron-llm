@@ -60,7 +60,8 @@ class TestRequestShape:
     def test_the_assistant_role_is_called_model(self, client: Aaron) -> None:
         route = respx.post(URL).mock(return_value=httpx.Response(200, json=load("google_chat")))
         client.chat(
-            "google/gemini-2.5-flash", [Message.user("hi"), Message.assistant("hello"), Message.user("again")]
+            "google/gemini-2.5-flash",
+            [Message.user("hi"), Message.assistant("hello"), Message.user("again")],
         )
         roles = [entry["role"] for entry in json.loads(route.calls[0].request.content)["contents"]]
         assert roles == ["user", "model", "user"]
@@ -220,7 +221,11 @@ class TestStreaming:
                     "index": 0,
                 }
             ],
-            "usageMetadata": {"promptTokenCount": 5, "candidatesTokenCount": 2, "totalTokenCount": 7},
+            "usageMetadata": {
+                "promptTokenCount": 5,
+                "candidatesTokenCount": 2,
+                "totalTokenCount": 7,
+            },
         },
     )
 

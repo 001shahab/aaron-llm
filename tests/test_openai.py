@@ -268,17 +268,13 @@ class TestErrorMapping:
         ],
     )
     def test_status_codes(self, client: Aaron, status: int, expected: type[Exception]) -> None:
-        respx.post(URL).mock(
-            return_value=httpx.Response(status, json={"error": {"message": "no"}})
-        )
+        respx.post(URL).mock(return_value=httpx.Response(status, json={"error": {"message": "no"}}))
         with pytest.raises(expected):
             client.chat("openai/gpt-4o", "hi")
 
     @respx.mock
     def test_context_length_is_detected_from_the_message(self, client: Aaron) -> None:
-        respx.post(URL).mock(
-            return_value=httpx.Response(400, json=load("openai_error_context"))
-        )
+        respx.post(URL).mock(return_value=httpx.Response(400, json=load("openai_error_context")))
         with pytest.raises(ContextLengthExceeded):
             client.chat("openai/gpt-4o", "hi")
 

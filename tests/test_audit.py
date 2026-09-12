@@ -120,16 +120,14 @@ class TestOneRecordPerCall:
         assert records[0].outcome == "cancelled"
 
     @respx.mock
-    def test_each_retry_is_counted_on_the_single_record(
-        self, records: list[AuditRecord]
-    ) -> None:
+    def test_each_retry_is_counted_on_the_single_record(self, records: list[AuditRecord]) -> None:
         respx.post(OPENAI_URL).mock(return_value=httpx.Response(500, json={"error": {}}))
         instance = Aaron(
             api_keys={"openai": "k"},
             audit=CallbackSink(records.append),
             retry=RetryPolicy(attempts=3, initial_delay=0.0),
         )
-        with pytest.raises(Exception, match="."):
+        with pytest.raises(Exception, match=r"."):
             instance.chat("openai/gpt-4o", "hi")
 
         assert len(records) == 1
@@ -165,9 +163,7 @@ class TestRecordContents:
         assert record.response_sha256
 
     @respx.mock
-    def test_content_is_absent_by_default(
-        self, client: Aaron, records: list[AuditRecord]
-    ) -> None:
+    def test_content_is_absent_by_default(self, client: Aaron, records: list[AuditRecord]) -> None:
         respx.post(OPENAI_URL).mock(return_value=httpx.Response(200, json=load("openai_chat")))
         client.chat("openai/gpt-4o", "a secret business plan")
 
