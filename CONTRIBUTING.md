@@ -118,18 +118,23 @@ Version 2.0, the same as the project.
 
 ## Releasing
 
-`.github/workflows/release.yml` publishes to PyPI when a `v*` tag is pushed. It runs
-every gate first, refuses to build if the tag does not match `__version__`, and refuses
-to release a registry price with no `last_verified` date. Publication uses PyPI trusted
-publishing, so no API token is stored in this repository or in GitHub secrets: PyPI
-verifies the workflow's OIDC identity instead. That needs a one time publisher entry on
-PyPI naming the owner, the repository, `release.yml` and the `pypi` environment.
+`.github/workflows/release.yml` publishes to PyPI when a GitHub release is published,
+so the notes exist before the artifacts do. It runs every gate first, refuses to build
+when the tag does not match `__version__`, refuses to release a registry price with no
+`last_verified` date, and attaches build provenance attestations to what it uploads.
+
+Publication uses PyPI trusted publishing, so no API token is stored in this repository
+or in GitHub secrets: PyPI verifies the workflow's OIDC identity instead. That needs a
+one time publisher entry on PyPI naming the owner, the repository, `release.yml` and the
+`pypi` environment. Running the workflow manually builds and gates without publishing,
+which is the way to check a release before committing to it.
 
 ```sh
 # bump src/aaron/_version.py, move the Unreleased section of CHANGELOG.md under the
 # new version, then:
 git tag -a v0.1.1 -m "aaron-llm 0.1.1"
 git push origin main --tags
+gh release create v0.1.1 --notes-from-tag   # this is what triggers the publish
 ```
 
 ## Where decisions are recorded

@@ -25,9 +25,11 @@ contributor of this repository. Every commit and every push must reflect that.
 
 ## Enforcement
 
-`.githooks/commit-msg` refuses a commit whose author or committer is anyone else, or
-whose message carries an attribution trailer or credits a tool. It is versioned, so it
-survives a fresh clone, but each clone has to point git at it once:
+`.githooks/commit-msg` **strips** an attribution trailer, because an editor or an agent
+appends one automatically and refusing there would block the commit without removing the
+trailer. It **refuses** a commit whose author or committer is anyone else, and one whose
+message credits a tool in prose, since both of those need fixing at the source. It is
+versioned, so it survives a fresh clone, but each clone has to point git at it once:
 
 ```sh
 git config core.hooksPath .githooks
