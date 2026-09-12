@@ -18,7 +18,7 @@ import pytest
 
 from aaron._yaml import YamlSubsetError, _parse, _significant_lines, load_mapping
 
-SHIPPED = Path(__file__).resolve().parents[1] / "src" / "aaron" / "models.yaml"
+SHIPPED = Path(__file__).resolve().parents[1] / "src" / "aaron" / "registry" / "models.yaml"
 
 
 def subset(text: str) -> dict[str, Any]:
@@ -202,9 +202,7 @@ class TestLoadMappingWithoutPyyaml:
             "on_violation": "raise",
         }
 
-    def test_the_registry_still_builds_with_no_yaml_installed(
-        self, without_pyyaml: None
-    ) -> None:
+    def test_the_registry_still_builds_with_no_yaml_installed(self, without_pyyaml: None) -> None:
         from aaron.registry import Registry
 
         registry = Registry.from_sources(SHIPPED)
@@ -245,7 +243,5 @@ class TestBothBackendsAgree:
         with pytest.raises(YamlSubsetError, match="expected a mapping"):
             load_mapping("- just\n- a list\n")
 
-    def test_a_blank_document_is_empty_with_either_backend(
-        self, without_pyyaml: None
-    ) -> None:
+    def test_a_blank_document_is_empty_with_either_backend(self, without_pyyaml: None) -> None:
         assert load_mapping("") == {}

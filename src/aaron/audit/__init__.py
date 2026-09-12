@@ -5,7 +5,7 @@
 """Audit: one structured record per call, suitable as compliance evidence."""
 
 from .record import AuditRecord, Outcome
-from .sinks import AuditLog, CallbackSink, JsonlSink, NullSink, Sink
+from .sinks import AuditLog, CallbackSink, JsonlSink, NullSink, OtelSink, Sink
 
 __all__ = [
     "AuditLog",
@@ -13,6 +13,7 @@ __all__ = [
     "CallbackSink",
     "JsonlSink",
     "NullSink",
+    "OtelSink",
     "Outcome",
     "Sink",
 ]

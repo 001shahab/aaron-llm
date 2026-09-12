@@ -592,11 +592,10 @@ class _ClientBase:
             prompt_sha256=prompt_sha256,
             response_sha256=body_sha256(response.raw) if response and response.raw else None,
             tags=dict(req.tags),
+            policy_detail=dict(detail) if detail else None,
         )
         if self.audit.record_content:
-            record.content = _content_snapshot(req, response, detail)
-        elif detail:
-            record.content = {"policy": dict(detail)}
+            record.content = _content_snapshot(req, response)
         return record
 
     def close(self) -> None:
@@ -1122,9 +1121,7 @@ def _outcome_for(error: BaseException) -> Outcome:
     return "timeout" if isinstance(error, AaronTimeout) else "provider_error"
 
 
-def _content_snapshot(
-    req: ChatRequest, response: Response | None, detail: Mapping[str, Any] | None
-) -> dict[str, Any]:
+def _content_snapshot(req: ChatRequest, response: Response | None) -> dict[str, Any]:
     """Build the opt in content block, with attachment bytes replaced by digests."""
     content: dict[str, Any] = {
         "messages": [_message_snapshot(message) for message in req.messages],
@@ -1132,8 +1129,6 @@ def _content_snapshot(
     }
     if response is not None and response.tool_calls:
         content["tool_calls"] = [call.model_dump() for call in response.tool_calls]
-    if detail:
-        content["policy"] = dict(detail)
     return content
 
 

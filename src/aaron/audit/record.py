@@ -35,6 +35,9 @@ class AuditRecord(BaseModel):
         prompt_sha256: Hash of the exact normalised body that was sent, so a caller
             can prove which prompt produced which answer without storing either.
         policy_snapshot: The rules that were in force at the time of the call.
+        policy_detail: For a refused call, the rule that refused it and every
+            fallback candidate that was tried. Metadata only, never prompt text, so
+            it is present whatever ``record_content`` is set to.
         redactions: How many replacements the redactors made before sending.
         content: The prompt and completion. Populated only when the sink was
             constructed with ``record_content=True``, which may place personal data
@@ -57,6 +60,7 @@ class AuditRecord(BaseModel):
     latency_ms: int | None = None
     attempts: int = 1
     policy_snapshot: dict[str, Any] = Field(default_factory=dict)
+    policy_detail: dict[str, Any] | None = None
     redactions: int = 0
     message_count: int = 0
     input_chars: int = 0

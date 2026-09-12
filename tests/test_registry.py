@@ -8,6 +8,7 @@ Copyright (c) 2026 3S Holding OU. Licensed under the Apache License, Version 2.0
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -281,7 +282,7 @@ class TestCheckCommand:
     """``python -m aaron.registry --check`` prints prices for review."""
 
     def test_it_prints_every_price(self, capsys: pytest.CaptureFixture[str]) -> None:
-        from aaron.registry import main
+        from aaron.registry.__main__ import main
 
         main(["--check"])
         output = capsys.readouterr().out
@@ -289,7 +290,7 @@ class TestCheckCommand:
         assert "verified" in output
 
     def test_it_can_print_one_model(self, capsys: pytest.CaptureFixture[str]) -> None:
-        from aaron.registry import main
+        from aaron.registry.__main__ import main
 
         assert main(["--check", "openai/gpt-4o"]) == 0
         output = capsys.readouterr().out
@@ -297,7 +298,7 @@ class TestCheckCommand:
         assert "anthropic" not in output
 
     def test_an_unknown_model_is_reported_by_name(self, capsys: pytest.CaptureFixture[str]) -> None:
-        from aaron.registry import main
+        from aaron.registry.__main__ import main
 
         assert main(["--check", "nope/nothing"]) == 2
         assert "nope/nothing" in capsys.readouterr().err
@@ -307,3 +308,19 @@ class TestCheckCommand:
         with pytest.raises(UnknownModel, match="nope/nothing"):
             registry.require("nope/nothing")
         assert registry.require("x/y").known is True
+
+
+class TestUnknownFields:
+    """An entry from a newer Aaron still loads, but a typo must be visible."""
+
+    def test_an_unknown_field_is_ignored_with_a_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.WARNING, logger="aaron"):
+            registry = Registry.from_sources(
+                {"acme/model-1": {"provider_regoin": "eu", "input_usd_per_mtok": 1.0}}
+            )
+
+        assert registry.region("acme/model-1") is None  # the typo was not honoured
+        assert "provider_regoin" in caplog.text
+        assert "unknown fields" in caplog.text

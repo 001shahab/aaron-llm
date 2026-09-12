@@ -1,0 +1,30 @@
+# Development and CI dependencies, edited by hand. The lock beside it is generated:
+#
+#     pip install pip-tools
+#     pip-compile --generate-hashes --output-file=requirements-dev.lock requirements-dev.in
+#
+# Everything is pinned to an exact version so a CI run a year from now installs what
+# this commit was tested against. The runtime dependencies are here too, because CI
+# installs the package with --no-deps and takes them from the lock.
+#
+# Copyright (c) 2026 3S Holding OU. Licensed under the Apache License, Version 2.0.
+
+# Runtime.
+httpx==0.28.1
+pydantic==2.13.5
+
+# The yaml extra, so the tests can check the bundled reader against pyyaml.
+pyyaml==6.0.3
+
+# Build backend, for an editable install.
+hatchling==1.32.0
+
+# Tests.
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0
+respx==0.23.1
+
+# Lint and types.
+mypy==2.3.1
+ruff==0.16.7

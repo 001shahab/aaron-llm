@@ -7,13 +7,14 @@
 An unknown model never raises. It resolves to permissive capabilities, zero cost
 marked as estimated, and a single warning per model per process. That keeps a new
 model release from breaking a caller who upgraded their provider but not Aaron.
+
+The data lives in ``models.yaml`` beside this file, and the ``--check`` command that
+reviews it before a release lives in ``__main__.py``.
 """
 
 from __future__ import annotations
 
-import argparse
 import logging
-import sys
 from collections.abc import Iterator, Mapping
 from functools import lru_cache
 from pathlib import Path
@@ -21,9 +22,9 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ._yaml import load_mapping
-from .errors import UnknownModel
-from .types import Cost, Usage
+from .._yaml import load_mapping
+from ..errors import UnknownModel
+from ..types import Cost, Usage
 
 log = logging.getLogger("aaron")
 
@@ -279,6 +280,17 @@ def _build_entry(key: str, value: Any, *, existing: ModelInfo | None) -> ModelIn
     verified = fields.get("last_verified")
     if verified is not None and not isinstance(verified, str):
         fields["last_verified"] = str(verified)  # PyYAML parses a bare date into date
+    unknown = sorted(set(fields) - set(ModelInfo.model_fields))
+    if unknown:
+        # Extra keys are ignored rather than rejected, so an entry written for a newer
+        # Aaron still loads. A warning is the difference between forward compatibility
+        # and a misspelled input_usd_per_mtok that silently prices the model at zero.
+        log.warning(
+            "registry entry %r has unknown fields %s, which are ignored. Known fields: %s",
+            key,
+            unknown,
+            sorted(ModelInfo.model_fields),
+        )
     capabilities = fields.get("capabilities")
     if isinstance(capabilities, str):
         fields["capabilities"] = tuple(part.strip() for part in capabilities.split(",") if part)
@@ -310,55 +322,3 @@ def glob_match(value: str, pattern: str) -> bool:
 def default_registry() -> Registry:
     """The shipped registry, parsed once per process."""
     return Registry.from_sources(_SHIPPED)
-
-
-def main(argv: list[str] | None = None) -> int:
-    """Print registry entries with their prices and last verified dates.
-
-    Args:
-        argv: Command line arguments, or None to read ``sys.argv``.
-
-    Returns:
-        0 when every listed entry carries a ``last_verified`` date, 1 otherwise, so
-        that a release script can gate on stale pricing.
-    """
-    parser = argparse.ArgumentParser(
-        prog="python -m aaron.registry",
-        description="Inspect the shipped model registry so pricing can be reviewed at release.",
-    )
-    parser.add_argument("--check", action="store_true", help="list every model and exit")
-    parser.add_argument("--registry", help="extra registry file to merge over the shipped one")
-    parser.add_argument("model", nargs="?", help="show one model instead of the whole table")
-    args = parser.parse_args(argv)
-
-    registry = default_registry().merge(args.registry)
-    if args.model:
-        try:
-            entries = [(args.model, registry.require(args.model))]
-        except UnknownModel as error:
-            print(error.message, file=sys.stderr)
-            return 2
-    else:
-        entries = list(registry)
-    header = f"{'model':44} {'in $/Mtok':>10} {'out $/Mtok':>11} {'region':>8}  verified"
-    print(header)
-    print("-" * len(header))
-    stale = 0
-    for name, entry in entries:
-        verified = entry.last_verified or "never"
-        if entry.last_verified is None:
-            stale += 1
-        price_in, price_out = _money(entry.input_usd_per_mtok), _money(entry.output_usd_per_mtok)
-        region = entry.provider_region or "?"
-        print(f"{name:44} {price_in:>10} {price_out:>11} {region:>8}  {verified}")
-    print(f"\n{len(entries)} entries, {stale} without a last_verified date.")
-    print("Prices go stale. Verify them against provider pricing pages before a release.")
-    return 1 if stale else 0
-
-
-def _money(value: float | None) -> str:
-    return "-" if value is None else f"{value:.4f}".rstrip("0").rstrip(".")
-
-
-if __name__ == "__main__":  # pragma: no cover - exercised through main() in tests
-    sys.exit(main())

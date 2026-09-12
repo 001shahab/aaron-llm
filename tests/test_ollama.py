@@ -17,7 +17,7 @@ import respx
 from pydantic import BaseModel
 
 from aaron import Aaron, AsyncAaron, Message, Tool
-from aaron.errors import LocalProviderUnavailable, MissingAPIKey
+from aaron.errors import InvalidRequest, LocalProviderUnavailable, MissingAPIKey
 from aaron.retry import RetryPolicy
 from aaron.stream import DoneEvent, TextEvent
 from conftest import load, ndjson
@@ -220,3 +220,19 @@ class TestStructuredOutput:
         assert city.name == "Tallinn"
         body = json.loads(route.calls[0].request.content)
         assert body["format"]["properties"]["name"]["type"] == "string"
+
+
+class TestDocuments:
+    """Ollama's chat API has nowhere to put a file, so a document must be refused."""
+
+    def test_a_document_is_refused_before_the_call(self, client: Aaron) -> None:
+        message = Message.user("summarise this", documents=[b"%PDF-1.4 pretend"])
+        with pytest.raises(InvalidRequest) as caught:
+            client.dry_run("ollama/llama3.1", message)
+        assert "ollama cannot accept a document" in str(caught.value)
+
+    def test_an_image_is_still_accepted(self, client: Aaron) -> None:
+        # The refusal must be specific to documents, not to every binary part.
+        message = Message.user("what is this", images=[b"\x89PNG\r\n\x1a\n"])
+        prepared = client.dry_run("ollama/llama3.1", message)
+        assert prepared.body["messages"][0]["images"]

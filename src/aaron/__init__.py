@@ -22,7 +22,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from ._version import __version__
-from .audit import AuditRecord, CallbackSink, JsonlSink, NullSink
+from .audit import AuditRecord, CallbackSink, JsonlSink, NullSink, OtelSink
 from .client import Aaron, AsyncAaron
 from .errors import (
     AaronError,
@@ -96,6 +96,7 @@ __all__ = [
     "Message",
     "MissingAPIKey",
     "NullSink",
+    "OtelSink",
     "Policy",
     "PolicyViolation",
     "ProviderError",

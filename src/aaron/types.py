@@ -244,9 +244,7 @@ class Message(BaseModel):
             parts.append(ImagePart(media_type=media_type, data=data))
         for document in documents:
             media_type, data = _read_blob(document, kind="document")
-            parts.append(
-                DocumentPart(media_type=media_type, data=data, name=_blob_name(document))
-            )
+            parts.append(DocumentPart(media_type=media_type, data=data, name=_blob_name(document)))
         if not parts:
             raise InvalidRequest("a user message needs text, an image or a document")
         return cls(role="user", content=parts)

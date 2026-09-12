@@ -168,9 +168,7 @@ class TestRetries:
                 httpx.Response(200, json=load("openai_chat")),
             ]
         )
-        instance = Aaron(
-            api_keys={"openai": "k"}, retry=RetryPolicy(attempts=3, initial_delay=0.0)
-        )
+        instance = Aaron(api_keys={"openai": "k"}, retry=RetryPolicy(attempts=3, initial_delay=0.0))
         assert instance.chat("openai/gpt-4o", "hi").text
         assert route.call_count == 2
 
@@ -182,18 +180,14 @@ class TestRetries:
                 httpx.Response(200, json=load("openai_chat")),
             ]
         )
-        instance = Aaron(
-            api_keys={"openai": "k"}, retry=RetryPolicy(attempts=2, initial_delay=0.0)
-        )
+        instance = Aaron(api_keys={"openai": "k"}, retry=RetryPolicy(attempts=2, initial_delay=0.0))
         instance.chat("openai/gpt-4o", "hi")
         assert route.call_count == 2
 
     @respx.mock
     def test_an_authentication_error_is_not_retried(self) -> None:
         route = respx.post(OPENAI_URL).mock(return_value=httpx.Response(401, json={"error": {}}))
-        instance = Aaron(
-            api_keys={"openai": "k"}, retry=RetryPolicy(attempts=5, initial_delay=0.0)
-        )
+        instance = Aaron(api_keys={"openai": "k"}, retry=RetryPolicy(attempts=5, initial_delay=0.0))
         with pytest.raises(AaronError):
             instance.chat("openai/gpt-4o", "hi")
         assert route.call_count == 1, "a bad key will still be bad on the fourth attempt"
@@ -203,9 +197,7 @@ class TestRetries:
         route = respx.post(OPENAI_URL).mock(
             return_value=httpx.Response(400, json={"error": {"message": "bad parameter"}})
         )
-        instance = Aaron(
-            api_keys={"openai": "k"}, retry=RetryPolicy(attempts=5, initial_delay=0.0)
-        )
+        instance = Aaron(api_keys={"openai": "k"}, retry=RetryPolicy(attempts=5, initial_delay=0.0))
         with pytest.raises(AaronError):
             instance.chat("openai/gpt-4o", "hi")
         assert route.call_count == 1
@@ -213,9 +205,7 @@ class TestRetries:
     @respx.mock
     def test_attempts_are_bounded(self) -> None:
         route = respx.post(OPENAI_URL).mock(return_value=httpx.Response(500, json={"error": {}}))
-        instance = Aaron(
-            api_keys={"openai": "k"}, retry=RetryPolicy(attempts=3, initial_delay=0.0)
-        )
+        instance = Aaron(api_keys={"openai": "k"}, retry=RetryPolicy(attempts=3, initial_delay=0.0))
         with pytest.raises(ServerError):
             instance.chat("openai/gpt-4o", "hi")
         assert route.call_count == 3
@@ -226,9 +216,7 @@ class TestRetries:
 
         body = sse({"id": "s", "choices": [{"index": 0, "delta": {"content": "partial"}}]})
         route = respx.post(OPENAI_URL).mock(return_value=httpx.Response(200, text=body))
-        instance = Aaron(
-            api_keys={"openai": "k"}, retry=RetryPolicy(attempts=3, initial_delay=0.0)
-        )
+        instance = Aaron(api_keys={"openai": "k"}, retry=RetryPolicy(attempts=3, initial_delay=0.0))
         list(instance.stream("openai/gpt-4o", "hi"))
         assert route.call_count == 1
 
@@ -318,9 +306,7 @@ class TestBatch:
                 httpx.Response(200, json=load("openai_chat")),
             ]
         )
-        async with AsyncAaron(
-            api_keys={"openai": "k"}, retry=RetryPolicy(attempts=1)
-        ) as client:
+        async with AsyncAaron(api_keys={"openai": "k"}, retry=RetryPolicy(attempts=1)) as client:
             results = await client.batch(
                 [{"model": "openai/gpt-4o", "messages": str(i)} for i in range(3)]
             )
@@ -521,9 +507,7 @@ class TestConfigurationResolution:
         path.write_text("timeout = 42.0\n", encoding="utf-8")
         assert Aaron(config_file=path, timeout=7.0).transport_config.timeout == 7.0
 
-    def test_a_missing_config_file_is_an_error_when_named_explicitly(
-        self, tmp_path: Path
-    ) -> None:
+    def test_a_missing_config_file_is_an_error_when_named_explicitly(self, tmp_path: Path) -> None:
         with pytest.raises(ConfigurationError):
             Aaron(config_file=tmp_path / "nope.toml")
 
@@ -534,7 +518,9 @@ class TestConfigurationResolution:
         assert Aaron().default_model == "ollama/llama3.1"
 
     def test_a_base_url_override_is_used(self) -> None:
-        instance = Aaron(api_keys={"openai": "k"}, base_urls={"openai": "https://proxy.internal/v1"})
+        instance = Aaron(
+            api_keys={"openai": "k"}, base_urls={"openai": "https://proxy.internal/v1"}
+        )
         assert instance.dry_run("openai/gpt-4o", "hi").url.startswith("https://proxy.internal/v1")
 
     def test_a_trailing_slash_on_a_base_url_does_not_double_up(self) -> None:

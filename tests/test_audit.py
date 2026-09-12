@@ -12,14 +12,15 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from unittest.mock import ANY
 
 import httpx
 import pytest
 import respx
 
-from aaron import Aaron, Message, Policy
-from aaron.audit import AuditLog, AuditRecord, CallbackSink, JsonlSink, NullSink
-from aaron.errors import RateLimitError
+from aaron import Aaron, Cost, Message, Policy, Usage
+from aaron.audit import AuditLog, AuditRecord, CallbackSink, JsonlSink, NullSink, OtelSink
+from aaron.errors import ConfigurationError, RateLimitError
 from aaron.retry import RetryPolicy
 from conftest import load, read_jsonl
 
@@ -84,6 +85,35 @@ class TestOneRecordPerCall:
         assert len(records) == 1
         assert records[0].outcome == "policy_violation"
         assert records[0].policy_snapshot["deny"] == ["openai/*"]
+        # The rule that refused it is metadata, so it is recorded even with content off.
+        assert records[0].policy_detail == {
+            "rule": "deny",
+            "candidates": [("openai/gpt-4o", "deny", ANY)],
+        }
+        assert records[0].content is None
+
+    @respx.mock
+    def test_a_fallback_records_every_candidate_that_was_refused(
+        self, records: list[AuditRecord]
+    ) -> None:
+        from aaron.errors import PolicyViolation
+
+        instance = Aaron(
+            policy=Policy(
+                deny=["openai/*", "ollama/*"],
+                fallback=["ollama/llama3.1"],
+                on_violation="fallback",
+            ),
+            audit=CallbackSink(records.append),
+        )
+        with pytest.raises(PolicyViolation):
+            instance.chat("openai/gpt-4o", "hi")
+
+        detail = records[0].policy_detail or {}
+        assert [model for model, _rule, _why in detail["candidates"]] == [
+            "openai/gpt-4o",
+            "ollama/llama3.1",
+        ]
 
     @respx.mock
     def test_a_stream_writes_one_record_when_it_finishes(
@@ -397,3 +427,129 @@ class TestMessageSnapshot:
         assert record.content is None
         # The base64 image must not inflate the character count of the text.
         assert record.input_chars == len("what is this")
+
+
+class FakeSpan:
+    """The two methods OtelSink uses, so the test needs no OpenTelemetry install."""
+
+    def __init__(self, name: str, start_time: int, attributes: dict[str, object]) -> None:
+        self.name = name
+        self.start_time = start_time
+        self.attributes = attributes
+        self.end_time: int | None = None
+        self.status: object | None = None
+        self.events: list[tuple[str, dict[str, object]]] = []
+
+    def set_status(self, status: object) -> None:
+        self.status = status
+
+    def add_event(self, name: str, attributes: dict[str, object]) -> None:
+        self.events.append((name, attributes))
+
+    def end(self, end_time: int) -> None:
+        self.end_time = end_time
+
+
+class FakeTracer:
+    """Collects the spans OtelSink emits."""
+
+    def __init__(self) -> None:
+        self.spans: list[FakeSpan] = []
+
+    def start_span(self, name: str, *, start_time: int, attributes: dict[str, object]) -> FakeSpan:
+        span = FakeSpan(name, start_time, attributes)
+        self.spans.append(span)
+        return span
+
+
+class TestOtelSink:
+    """The optional extra must not be imported unless the sink is actually used."""
+
+    def record(self, **overrides: object) -> AuditRecord:
+        fields: dict[str, object] = {
+            "model_requested": "openai/gpt-4o",
+            "model_resolved": "gpt-4o-2024-11-20",
+            "provider": "openai",
+            "provider_region": "us",
+            "base_url": "https://api.openai.com/v1",
+            "latency_ms": 1200,
+            "usage": Usage(input_tokens=26, output_tokens=298),
+            "cost": Cost(usd=0.003, estimated=False),
+            "tags": {"tenant": "acme"},
+        }
+        fields.update(overrides)
+        return AuditRecord(**fields)  # type: ignore[arg-type]
+
+    def test_a_span_carries_the_conventional_attributes(self) -> None:
+        tracer = FakeTracer()
+        OtelSink(tracer).write(self.record())
+
+        span = tracer.spans[0]
+        assert span.name == "chat openai/gpt-4o"
+        assert span.attributes["gen_ai.system"] == "openai"
+        assert span.attributes["gen_ai.response.model"] == "gpt-4o-2024-11-20"
+        assert span.attributes["gen_ai.usage.input_tokens"] == 26
+        assert span.attributes["aaron.cost_usd"] == 0.003
+        assert span.attributes["aaron.tag.tenant"] == "acme"
+
+    def test_the_span_covers_the_real_duration(self) -> None:
+        tracer = FakeTracer()
+        OtelSink(tracer).write(self.record(latency_ms=1200))
+
+        span = tracer.spans[0]
+        assert span.end_time is not None
+        assert span.end_time - span.start_time == 1_200_000_000
+
+    def test_content_stays_off_the_span_by_default(self) -> None:
+        tracer = FakeTracer()
+        record = self.record(content={"messages": [{"role": "user"}], "output": "secret"})
+        OtelSink(tracer).write(record)
+        assert tracer.spans[0].events == []
+
+        OtelSink(tracer, record_content=True).write(record)
+        assert tracer.spans[1].events[0][0] == "aaron.content"
+
+    def test_a_missing_extra_says_how_to_install_it(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fail(name: str, *args: object, **kwargs: object) -> object:
+            if name.startswith("opentelemetry"):
+                raise ImportError("no opentelemetry")
+            return real_import(name, *args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(builtins, "__import__", fail)
+        with pytest.raises(ConfigurationError) as caught:
+            OtelSink()
+        assert "aaron-llm[otel]" in str(caught.value)
+
+    def test_the_default_tracer_and_an_error_status_use_the_real_api(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # OpenTelemetry is not in the dev lock, so the module surface OtelSink touches
+        # is stubbed here. It is small on purpose: get_tracer, Status and StatusCode.
+        import sys
+        import types
+
+        tracer = FakeTracer()
+        trace = types.ModuleType("opentelemetry.trace")
+        trace.get_tracer = lambda name: tracer  # type: ignore[attr-defined]
+        trace.Status = lambda code, description: ("status", code, description)  # type: ignore[attr-defined]
+        trace.StatusCode = types.SimpleNamespace(ERROR="ERROR")  # type: ignore[attr-defined]
+        package = types.ModuleType("opentelemetry")
+        package.trace = trace  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "opentelemetry", package)
+        monkeypatch.setitem(sys.modules, "opentelemetry.trace", trace)
+
+        OtelSink().write(self.record(outcome="provider_error", error_type="RateLimitError"))
+
+        assert tracer.spans[0].status == ("status", "ERROR", "RateLimitError")
+
+    def test_a_failing_tracer_does_not_break_the_call(self) -> None:
+        class Broken:
+            def start_span(self, *args: object, **kwargs: object) -> object:
+                raise RuntimeError("collector is down")
+
+        log = AuditLog(OtelSink(Broken()))  # type: ignore[arg-type]
+        log.write(self.record())  # must not raise

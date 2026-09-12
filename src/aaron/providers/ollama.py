@@ -19,6 +19,7 @@ import json
 from collections.abc import Iterator
 from typing import Any
 
+from ..errors import InvalidRequest
 from ..request import ChatRequest, estimate_output_tokens, estimate_tokens
 from ..stream import (
     StreamAssembler,
@@ -28,6 +29,7 @@ from ..stream import (
     ToolCallEndEvent,
 )
 from ..types import (
+    DocumentPart,
     ImagePart,
     Message,
     Response,
@@ -114,7 +116,19 @@ class OllamaProvider(BaseProvider):
         )
 
     def encode(self, message: Message) -> dict[str, Any]:
-        """Encode one message. Images ride alongside the text, not inside it."""
+        """Encode one message. Images ride alongside the text, not inside it.
+
+        Raises:
+            InvalidRequest: The message carries a document. The Ollama chat API has
+                nowhere to put one, and dropping it silently would answer a question
+                about a file the model never saw.
+        """
+        if any(isinstance(part, DocumentPart) for part in message.content):
+            raise InvalidRequest(
+                "ollama cannot accept a document. Extract the text yourself and send "
+                "it as text, or use a provider with document support.",
+                provider=self.name,
+            )
         entry: dict[str, Any] = {"role": message.role, "content": message.text}
         images = [part.data for part in message.content if isinstance(part, ImagePart)]
         if images:

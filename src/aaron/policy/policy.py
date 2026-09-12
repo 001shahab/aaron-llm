@@ -158,10 +158,8 @@ class Policy:
         fields: dict[str, Any] = dict(data)
         raw_redactors = fields.get("redactors")
         if raw_redactors:
-            try:
-                fields["redactors"] = tuple(build_redactor(spec) for spec in raw_redactors)
-            except ValueError as exc:
-                raise ConfigurationError(str(exc)) from exc
+            # build_redactor raises ConfigurationError itself, naming the bad entry.
+            fields["redactors"] = tuple(build_redactor(spec) for spec in raw_redactors)
         for key in ("allow", "deny", "require_capabilities", "fallback"):
             value = fields.get(key)
             if isinstance(value, str):

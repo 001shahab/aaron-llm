@@ -205,6 +205,9 @@ it by scanning serialised records for the fixture key.
 python -m aaron.audit summarise calls.jsonl   # calls, tokens, cost, errors by model and tag
 ```
 
+`CallbackSink` hands each record to your own function, and `OtelSink` emits one
+OpenTelemetry span per call if you already run tracing.
+
 Written for a compliance reader: [docs/audit.md](docs/audit.md).
 
 ## How this compares
@@ -246,7 +249,9 @@ README would rather say so than sell you something.
 - CI runs `mypy --strict`, `ruff`, `pip-audit`, and a dependency policy check, and
   enforces 90 percent coverage.
 
-Report a vulnerability privately: see [SECURITY.md](SECURITY.md).
+Report a vulnerability privately: see [SECURITY.md](SECURITY.md). To work on Aaron,
+see [CONTRIBUTING.md](CONTRIBUTING.md); the release history is in
+[CHANGELOG.md](CHANGELOG.md).
 
 Model prices in `models.yaml` go stale. Verify them before you rely on a cost figure:
 

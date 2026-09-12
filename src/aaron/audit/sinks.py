@@ -20,9 +20,13 @@ import logging
 import threading
 from collections.abc import Callable
 from pathlib import Path
-from typing import Protocol, TextIO, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, TextIO, runtime_checkable
 
+from ..errors import ConfigurationError
 from .record import AuditRecord
+
+if TYPE_CHECKING:  # pragma: no cover - the extra is not installed for type checking
+    from opentelemetry.trace import Tracer
 
 log = logging.getLogger("aaron")
 
@@ -118,6 +122,95 @@ class CallbackSink:
 
     def close(self) -> None:
         """Nothing to release."""
+
+
+class OtelSink:
+    """Emits one OpenTelemetry span per call, for a team that already has tracing.
+
+    Attribute names follow the GenAI semantic conventions where they exist, so an
+    existing dashboard recognises them, with Aaron's own additions under ``aaron.``
+    for cost, policy and redaction counts.
+
+    Args:
+        tracer: The tracer to use. Defaults to one named ``aaron`` from the global
+            provider, which is what an application that has configured OpenTelemetry
+            already expects.
+        record_content: Whether to put prompts and completions on the span. Off by
+            default, and a span is a particularly bad place for personal data because
+            it is usually shipped to a third party collector.
+
+    Raises:
+        ConfigurationError: OpenTelemetry is not installed. It is an optional extra,
+            imported here rather than at module import time so the base install stays
+            at two dependencies.
+    """
+
+    def __init__(self, tracer: Tracer | None = None, *, record_content: bool = False) -> None:
+        self.record_content = record_content
+        self._tracer = tracer if tracer is not None else _default_tracer()
+
+    def write(self, record: AuditRecord) -> None:
+        """Emit the record as a span covering the real duration of the call."""
+        start = int(record.timestamp.timestamp() * 1_000_000_000)
+        span = self._tracer.start_span(
+            f"chat {record.model_requested}",
+            start_time=start,
+            attributes=_span_attributes(record),
+        )
+        if record.error_type:
+            span.set_status(_error_status(record))
+        if self.record_content and record.content is not None:
+            span.add_event("aaron.content", attributes={"aaron.content": str(record.content)})
+        span.end(end_time=start + int((record.latency_ms or 0) * 1_000_000))
+
+    def close(self) -> None:
+        """Nothing to release. Flushing is the tracer provider's job, not ours."""
+
+
+def _default_tracer() -> Tracer:
+    """Fetch the ``aaron`` tracer, explaining the missing extra if it is not there."""
+    try:
+        from opentelemetry import trace
+    except ImportError as exc:  # pragma: no cover - exercised with a stubbed import
+        raise ConfigurationError(
+            "OtelSink needs OpenTelemetry. Install it with: pip install 'aaron-llm[otel]'"
+        ) from exc
+    return trace.get_tracer("aaron")
+
+
+def _span_attributes(record: AuditRecord) -> dict[str, Any]:
+    """Flatten a record into span attributes, credentials and content excluded."""
+    attributes: dict[str, Any] = {
+        "gen_ai.system": record.provider,
+        "gen_ai.request.model": record.model_requested,
+        "gen_ai.operation.name": "chat",
+        "server.address": record.base_url,
+        "aaron.outcome": record.outcome,
+        "aaron.attempts": record.attempts,
+        "aaron.redactions": record.redactions,
+        "aaron.audit_id": record.id,
+    }
+    if record.model_resolved:
+        attributes["gen_ai.response.model"] = record.model_resolved
+    if record.provider_region:
+        attributes["aaron.provider_region"] = record.provider_region
+    if record.usage:
+        attributes["gen_ai.usage.input_tokens"] = record.usage.input_tokens
+        attributes["gen_ai.usage.output_tokens"] = record.usage.output_tokens
+    if record.cost:
+        attributes["aaron.cost_usd"] = record.cost.usd
+        attributes["aaron.cost_estimated"] = record.cost.estimated
+    if record.policy_detail:
+        attributes["aaron.policy_rule"] = str(record.policy_detail.get("rule", ""))
+    attributes.update({f"aaron.tag.{key}": value for key, value in record.tags.items()})
+    return attributes
+
+
+def _error_status(record: AuditRecord) -> Any:
+    """Build an error status, importing the status classes only when one is needed."""
+    from opentelemetry.trace import Status, StatusCode
+
+    return Status(StatusCode.ERROR, record.error_type)
 
 
 class AuditLog:

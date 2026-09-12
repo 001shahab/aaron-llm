@@ -14,9 +14,9 @@ budget on the third:
 
 | Count | Meaning | Current |
 | --- | --- | --- |
-| Physical | every line in every `.py` file | 6580 |
-| Code | excluding blank lines, comments and docstrings | 4009 |
-| Implementation | code lines, also excluding `import` statements and `__all__` lists | 3568 |
+| Physical | every line in every `.py` file | 6869 |
+| Code | excluding blank lines, comments and docstrings | 4165 |
+| Implementation | code lines, also excluding `import` statements and `__all__` lists | 3710 |
 
 **Why.** The budget exists so that a reviewer can read the whole client. Section 17
 makes a docstring mandatory on every public function, so counting docstrings would set
@@ -124,9 +124,16 @@ agree field for field.
 Section 12 fixes the error hierarchy, and eight of those names do not end in `Error`.
 N818 wants `PolicyViolationError`. The names in the spec are the public API, and
 `except PolicyViolation:` reads better than the alternative, so `src/aaron/errors.py`
-carries a documented per-file ignore. `TimeoutError`, `ConnectionError` and
-`PermissionError` deliberately shadow builtins inside that module, which is the
-intent: `except TimeoutError` catches both.
+carries a documented per-file ignore.
+
+`TimeoutError`, `ConnectionError` and `PermissionError` shadow builtin names inside
+that module. They shadow **by name only**: they inherit from `TransportError` and
+`ProviderError`, not from the builtins, so `except OSError` will not catch an Aaron
+connection failure. For that reason they are the three error classes not re-exported
+from the `aaron` namespace, where they would shadow the builtins in a caller's code.
+The alternative, inheriting from both, would make every Aaron connection error an
+`OSError` and quietly change the meaning of existing `except OSError` blocks in
+calling code. A test pins the current inheritance so nobody assumes otherwise.
 
 ## 9. `providers/base.py` is exempt from the 400 line rule
 
@@ -143,3 +150,56 @@ those has a false positive rate high enough to be misleading in a compliance log
 each one added code for a guess. What ships is `RegexRedactor` plus email and IP
 address, both of which are unambiguous, and a policy file can name any pattern of its
 own.
+
+## 11. `aaron.registry` is a package, so its CLI is not double imported
+
+`aaron/__init__.py` imports `Registry`, so `aaron.registry` is always in `sys.modules`
+by the time `python -m aaron.registry --check` runs, and runpy prints a
+`RuntimeWarning` about executing a module that has already been imported. The command
+is in the README, and a documented command should not print a warning.
+
+`registry.py` became `registry/__init__.py` plus `registry/__main__.py`, which is the
+shape `aaron.audit` already had, and `models.yaml` moved next to the code that reads
+it. The command line is unchanged, the warning is gone, and `argparse` and `sys` are no
+longer imported by every process that imports Aaron.
+
+## 12. The dev lock excludes the release tools
+
+`requirements-dev.lock` is installed by three CI jobs and scanned by `pip-audit`.
+Adding `build` and `twine` to it brought in keyring, rich, docutils, requests and a
+dozen more: twenty extra packages in every lint and test job, and twenty more
+opportunities for an advisory to fail a build that has nothing to do with publishing.
+Release tooling is installed on demand in the release step. The lock is 30 packages.
+
+## 13. Policy detail is its own field, not part of `content`
+
+A refused call records which rule refused it and every fallback candidate that was
+tried. That was written under `content`, which made `content` non-null on a client with
+`record_content=False` and broke the one question a reviewer most wants a cheap answer
+to: does this log hold personal data? It is now `policy_detail`, which is metadata,
+always recorded, and never prompt text. `content` means prompt and completion, only.
+
+## 14. An unknown registry field warns rather than fails
+
+Registry entries ignore unknown keys so an entry written for a newer Aaron still loads.
+Silently ignoring them hides a misspelled `input_usd_per_mtok`, which would price a
+model at zero and disable a cost ceiling: a typo in the unsafe direction. Loading now
+logs a warning naming the entry, the unknown keys and the known field names. Rejecting
+outright was the other option, and it would make a registry file version locked to the
+library for no safety benefit in the common case.
+
+## 15. Ollama refuses a document instead of dropping it
+
+The Ollama chat API takes images alongside the text and has nowhere to put a file. The
+encoder silently dropped a `DocumentPart`, so a caller who attached a contract got a
+confident answer about a document the model never saw. It now raises `InvalidRequest`
+while the request is being built, naming what to do instead. Silent data loss is worse
+than a refusal, especially in a library whose selling point is an audit trail.
+
+## 16. `OtelSink` ships, because a declared extra should do something
+
+The specification lists an `otel` extra. Nothing used it, which would have shipped a
+`pip install "aaron-llm[otel]"` that installed two packages and changed no behaviour.
+`OtelSink` emits one span per call using the GenAI convention attribute names, with
+`opentelemetry` imported inside the sink so the base install stays at two dependencies
+and the absence of the extra is a `ConfigurationError` naming the install command.
