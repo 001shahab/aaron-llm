@@ -5,8 +5,11 @@
 """``python -m aaron.registry --check``.
 
 Prints every registry entry with its prices, region and the date the price was last
-verified, and exits non zero when any entry has never been verified, so a release
-script can refuse to ship a stale price. Standard library only.
+verified, and exits non zero when a priced entry has never been verified, so a release
+script can refuse to ship a price nobody checked. Standard library only.
+
+A wildcard entry such as ``openai/*`` carries capabilities and a region but no price,
+so it has nothing to verify and does not count against the check.
 """
 
 from __future__ import annotations
@@ -25,8 +28,8 @@ def main(argv: list[str] | None = None) -> int:
         argv: Command line arguments, or None to read ``sys.argv``.
 
     Returns:
-        0 when every listed entry carries a ``last_verified`` date, 1 when any is
-        missing one, and 2 when a named model is not in the registry at all.
+        0 when every priced entry carries a ``last_verified`` date, 1 when a priced
+        entry is missing one, and 2 when a named model is not in the registry at all.
     """
     parser = argparse.ArgumentParser(
         prog="python -m aaron.registry",
@@ -52,12 +55,12 @@ def main(argv: list[str] | None = None) -> int:
     stale = 0
     for name, entry in entries:
         verified = entry.last_verified or "never"
-        if entry.last_verified is None:
+        if entry.last_verified is None and entry.priced:
             stale += 1
         price_in, price_out = _money(entry.input_usd_per_mtok), _money(entry.output_usd_per_mtok)
         region = entry.provider_region or "?"
         print(f"{name:44} {price_in:>10} {price_out:>11} {region:>8}  {verified}")
-    print(f"\n{len(entries)} entries, {stale} without a last_verified date.")
+    print(f"\n{len(entries)} entries, {stale} priced without a last_verified date.")
     print("Prices go stale. Verify them against provider pricing pages before a release.")
     return 1 if stale else 0
 
@@ -67,8 +70,4 @@ def _money(value: float | None) -> str:
 
 
 if __name__ == "__main__":  # pragma: no cover - exercised through main() in tests
-    sys.exit(main())
-
-
-if __name__ == "__main__":  # pragma: no cover
     sys.exit(main())

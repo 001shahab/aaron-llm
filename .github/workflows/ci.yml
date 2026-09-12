@@ -51,7 +51,7 @@ jobs:
       - name: Install package without dependencies
         run: pip install --no-deps -e .
       - name: Run tests with coverage
-        run: pytest --cov=src/aaron --cov-report=term-missing --cov-fail-under=90
+        run: pytest --cov=aaron --cov-report=term-missing --cov-fail-under=90
 
   audit:
     name: dependency audit
@@ -86,6 +86,8 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install build twine
+      - name: Refuse to build with a price nobody verified
+        run: pip install --no-deps -e . && python -m aaron.registry --check
       - run: python -m build
       - run: twine check --strict dist/*
       - uses: actions/upload-artifact@v4

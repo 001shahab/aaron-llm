@@ -5,6 +5,12 @@ refuses it, one when the provider fails, one when a stream is abandoned half way
 zero, and not one per retry. If your log has ten thousand lines, ten thousand calls
 were attempted.
 
+The exception is a call that could not be assembled at all, such as a missing
+credential or a model string that is not `provider/model`. Those raise a
+`ConfigurationError` or an `InvalidRequest` from the client before a request exists,
+and they are not recorded, because nothing was attempted and there is nothing to say
+about a provider that was never chosen.
+
 The record is designed to be evidence. It says what was asked for, what actually ran,
 where it was processed, what it cost, and what was stripped before it left, **without
 containing the prompt** unless you explicitly turned that on.

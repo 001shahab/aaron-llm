@@ -303,6 +303,28 @@ class TestCheckCommand:
         assert main(["--check", "nope/nothing"]) == 2
         assert "nope/nothing" in capsys.readouterr().err
 
+    def test_the_shipped_registry_passes_the_check(self) -> None:
+        from aaron.registry.__main__ import main
+
+        # A release script gates on this, so the shipped file must be releasable.
+        assert main(["--check"]) == 0
+
+    def test_only_a_priced_entry_can_be_stale(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from aaron.registry.__main__ import main
+
+        # A wildcard entry carries a region and capabilities but no price, so it has
+        # nothing to verify. A priced entry with no date fails the check.
+        extra = tmp_path / "extra.yaml"
+        extra.write_text(
+            "acme/*:\n  provider_region: eu\nacme/priced:\n  input_usd_per_mtok: 1.0\n"
+            "  output_usd_per_mtok: 2.0\n",
+            encoding="utf-8",
+        )
+        assert main(["--check", "--registry", str(extra)]) == 1
+        assert "1 priced without a last_verified date" in capsys.readouterr().out
+
     def test_require_refuses_to_fall_back(self) -> None:
         registry = Registry.from_sources({"x/y": {}})
         with pytest.raises(UnknownModel, match="nope/nothing"):
