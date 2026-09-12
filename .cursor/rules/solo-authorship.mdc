@@ -1,0 +1,29 @@
+---
+description: Authorship and attribution rules for every commit and push in this repository
+alwaysApply: true
+---
+
+# Authorship
+
+Prof. Shahab Anbarjafari <shb@3sholding.com> is the sole author, committer and
+contributor of this repository. Every commit and every push must reflect that.
+
+## Rules
+
+- Commit as `Prof. Shahab Anbarjafari <shb@3sholding.com>`. The local repo config
+  already sets `user.name` and `user.email`; never override them on a commit.
+- Never add a `Co-Authored-By:` trailer, for any name, including AI assistants.
+- Never add `Signed-off-by:`, `Generated with`, `Assisted-by:` or any similar
+  attribution trailer.
+- Never mention an AI tool, model or assistant in a commit message, tag message,
+  release note or PR description.
+- Author and committer must be identical. Do not use `--author` to split them.
+- If a commit is ever created with the wrong identity, amend or rebase it so the
+  history contains exactly one author and one committer.
+
+## Verification before pushing
+
+```sh
+git log --format='%an <%ae> | %cn <%ce>' | sort -u   # must print exactly one line
+git log --format='%B' | grep -iE 'co-authored-by|signed-off-by|generated with'  # must find nothing
+```

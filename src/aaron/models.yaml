@@ -1,0 +1,196 @@
+# Copyright (c) 2026 3S Holding OU. All rights reserved.
+# Licensed under the Apache License, Version 2.0.
+# Author: Prof. Shahab Anbarjafari <shb@3sholding.com>
+#
+# Model metadata: context windows, list prices per million tokens, capabilities
+# and the region the provider processes the request in.
+#
+# PRICES GO STALE. Run `python -m aaron.registry --check` and verify every entry
+# against the provider's pricing page before a release. An unknown or unpriced
+# model is never blocked; it is reported with Cost.estimated = True.
+#
+# provider_region is the jurisdiction the *default* endpoint processes data in.
+# It is a coarse signal for the policy layer, not a legal opinion. A dedicated or
+# regional deployment changes it, so override this file when you use one.
+#
+# Keys may use a trailing '*' glob. The longest matching key wins.
+
+openai/gpt-4o:
+  context_window: 128000
+  max_output_tokens: 16384
+  input_usd_per_mtok: 2.50
+  output_usd_per_mtok: 10.00
+  cached_input_usd_per_mtok: 1.25
+  capabilities: [tools, vision, json_schema, json_mode, streaming]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+openai/gpt-4o-mini:
+  context_window: 128000
+  max_output_tokens: 16384
+  input_usd_per_mtok: 0.15
+  output_usd_per_mtok: 0.60
+  cached_input_usd_per_mtok: 0.075
+  capabilities: [tools, vision, json_schema, json_mode, streaming]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+openai/gpt-4.1:
+  context_window: 1047576
+  max_output_tokens: 32768
+  input_usd_per_mtok: 2.00
+  output_usd_per_mtok: 8.00
+  cached_input_usd_per_mtok: 0.50
+  capabilities: [tools, vision, json_schema, json_mode, streaming]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+openai/gpt-4.1-mini:
+  context_window: 1047576
+  max_output_tokens: 32768
+  input_usd_per_mtok: 0.40
+  output_usd_per_mtok: 1.60
+  cached_input_usd_per_mtok: 0.10
+  capabilities: [tools, vision, json_schema, json_mode, streaming]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+openai/o3:
+  context_window: 200000
+  max_output_tokens: 100000
+  input_usd_per_mtok: 2.00
+  output_usd_per_mtok: 8.00
+  cached_input_usd_per_mtok: 0.50
+  capabilities: [tools, vision, json_schema, streaming, thinking]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+openai/o4-mini:
+  context_window: 200000
+  max_output_tokens: 100000
+  input_usd_per_mtok: 1.10
+  output_usd_per_mtok: 4.40
+  cached_input_usd_per_mtok: 0.275
+  capabilities: [tools, vision, json_schema, streaming, thinking]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+openai/*:
+  capabilities: [tools, vision, json_schema, json_mode, streaming]
+  provider_region: us
+
+anthropic/claude-sonnet-4-5:
+  context_window: 200000
+  max_output_tokens: 64000
+  input_usd_per_mtok: 3.00
+  output_usd_per_mtok: 15.00
+  cached_input_usd_per_mtok: 0.30
+  capabilities: [tools, vision, documents, json_schema, json_mode, streaming, thinking]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+anthropic/claude-opus-4-1:
+  context_window: 200000
+  max_output_tokens: 32000
+  input_usd_per_mtok: 15.00
+  output_usd_per_mtok: 75.00
+  cached_input_usd_per_mtok: 1.50
+  capabilities: [tools, vision, documents, json_schema, json_mode, streaming, thinking]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+anthropic/claude-haiku-4-5:
+  context_window: 200000
+  max_output_tokens: 64000
+  input_usd_per_mtok: 1.00
+  output_usd_per_mtok: 5.00
+  cached_input_usd_per_mtok: 0.10
+  capabilities: [tools, vision, documents, json_schema, json_mode, streaming]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+anthropic/claude-3-5-haiku-latest:
+  context_window: 200000
+  max_output_tokens: 8192
+  input_usd_per_mtok: 0.80
+  output_usd_per_mtok: 4.00
+  cached_input_usd_per_mtok: 0.08
+  capabilities: [tools, vision, documents, json_schema, json_mode, streaming]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+anthropic/*:
+  capabilities: [tools, vision, documents, json_schema, json_mode, streaming]
+  provider_region: us
+
+google/gemini-2.5-pro:
+  context_window: 1048576
+  max_output_tokens: 65536
+  input_usd_per_mtok: 1.25
+  output_usd_per_mtok: 10.00
+  cached_input_usd_per_mtok: 0.31
+  capabilities: [tools, vision, documents, json_schema, json_mode, streaming, thinking]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+google/gemini-2.5-flash:
+  context_window: 1048576
+  max_output_tokens: 65536
+  input_usd_per_mtok: 0.30
+  output_usd_per_mtok: 2.50
+  cached_input_usd_per_mtok: 0.075
+  capabilities: [tools, vision, documents, json_schema, json_mode, streaming, thinking]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+google/gemini-2.5-flash-lite:
+  context_window: 1048576
+  max_output_tokens: 65536
+  input_usd_per_mtok: 0.10
+  output_usd_per_mtok: 0.40
+  capabilities: [tools, vision, documents, json_schema, json_mode, streaming]
+  provider_region: us
+  last_verified: "2026-09-01"
+
+google/*:
+  capabilities: [tools, vision, documents, json_schema, json_mode, streaming]
+  provider_region: us
+
+# Local inference. Nothing leaves the machine, so the cost is zero and the region
+# is 'local', which every residency setting accepts.
+ollama/*:
+  capabilities: [tools, json_schema, json_mode, streaming]
+  input_usd_per_mtok: 0.0
+  output_usd_per_mtok: 0.0
+  provider_region: local
+  last_verified: "2026-09-01"
+
+ollama/llama3.1*:
+  context_window: 131072
+  capabilities: [tools, json_schema, json_mode, streaming]
+  input_usd_per_mtok: 0.0
+  output_usd_per_mtok: 0.0
+  provider_region: local
+  last_verified: "2026-09-01"
+
+ollama/qwen3*:
+  context_window: 40960
+  capabilities: [tools, json_schema, json_mode, streaming, thinking]
+  input_usd_per_mtok: 0.0
+  output_usd_per_mtok: 0.0
+  provider_region: local
+  last_verified: "2026-09-01"
+
+ollama/llava*:
+  context_window: 32768
+  capabilities: [vision, streaming]
+  input_usd_per_mtok: 0.0
+  output_usd_per_mtok: 0.0
+  provider_region: local
+  last_verified: "2026-09-01"
+
+# An OpenAI compatible endpoint could be anywhere and cost anything, so no region
+# and no price are declared. A policy with a residency requirement will reject it
+# until you override this entry with the region your endpoint actually runs in.
+openai_compat/*:
+  capabilities: [tools, json_schema, json_mode, streaming]

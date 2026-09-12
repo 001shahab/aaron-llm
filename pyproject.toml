@@ -1,0 +1,113 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aaron-llm"
+dynamic = ["version"]
+description = "One client for every model, with a policy and an audit trail."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Prof. Shahab Anbarjafari", email = "shb@3sholding.com" }]
+maintainers = [{ name = "Prof. Shahab Anbarjafari", email = "shb@3sholding.com" }]
+keywords = [
+  "llm",
+  "openai",
+  "anthropic",
+  "gemini",
+  "google",
+  "ollama",
+  "gateway",
+  "compliance",
+  "audit",
+  "gdpr",
+  "eu-ai-act",
+  "policy",
+  "observability",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Legal Industry",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Typing :: Typed",
+]
+dependencies = ["httpx>=0.27", "pydantic>=2.7"]
+
+[project.optional-dependencies]
+otel = ["opentelemetry-api>=1.25", "opentelemetry-sdk>=1.25"]
+yaml = ["pyyaml>=6.0"]
+
+[project.urls]
+Homepage = "https://3sholding.com"
+Repository = "https://github.com/001shahab/aaron-llm"
+Documentation = "https://github.com/001shahab/aaron-llm/tree/main/docs"
+Issues = "https://github.com/001shahab/aaron-llm/issues"
+Changelog = "https://github.com/001shahab/aaron-llm/blob/main/CHANGELOG.md"
+
+[tool.hatch.version]
+path = "src/aaron/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aaron"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/aaron", "tests", "docs", "LICENSE", "NOTICE", "README.md", "CHANGELOG.md"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["N802", "N806"]
+# The exception names are part of the public API contract in the build spec, and
+# reading `except PolicyViolation:` beats `except PolicyViolationError:`.
+"src/aaron/errors.py" = ["N818"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/aaron"]
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+
+[[tool.mypy.overrides]]
+module = ["yaml", "opentelemetry.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+asyncio_mode = "auto"
+filterwarnings = ["error"]
+markers = ["live: hits real provider endpoints, requires AARON_LIVE_TESTS=1"]
+
+[tool.coverage.run]
+source = ["src/aaron"]
+branch = true
+omit = ["src/aaron/__main__.py"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "@overload",
+  "\\.\\.\\.$",
+]
