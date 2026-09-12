@@ -14,6 +14,14 @@ pip install --require-hashes -r requirements-dev.lock
 pip install --no-deps -e .
 ```
 
+Point git at the versioned hooks while you are here. The `commit-msg` hook refuses a
+commit with the wrong identity or an attribution trailer, which is the rule this
+repository is strictest about:
+
+```sh
+git config core.hooksPath .githooks
+```
+
 The lock is hash pinned, so this installs exactly what CI installs. Regenerate it after
 changing `requirements-dev.in`:
 

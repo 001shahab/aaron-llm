@@ -1,0 +1,55 @@
+#!/bin/sh
+# Copyright (c) 2026 3S Holding OU. All rights reserved.
+# Licensed under the Apache License, Version 2.0.
+# Author: Prof. Shahab Anbarjafari <shb@3sholding.com>
+#
+# Refuses a commit that would put anyone other than the sole author into the
+# history, either as an identity or as an attribution trailer.
+#
+# Enable it once per clone:
+#
+#     git config core.hooksPath .githooks
+#
+set -eu
+
+MESSAGE_FILE="$1"
+EXPECTED_NAME="Prof. Shahab Anbarjafari"
+EXPECTED_EMAIL="shb@3sholding.com"
+FAILED=0
+
+fail() {
+	printf 'commit refused: %s\n' "$1" >&2
+	FAILED=1
+}
+
+# Identity. Author and committer must both be the sole author, and must match.
+for role in AUTHOR COMMITTER; do
+	name=$(eval "printf '%s' \"\${GIT_${role}_NAME:-}\"")
+	email=$(eval "printf '%s' \"\${GIT_${role}_EMAIL:-}\"")
+	[ -n "$name" ] || name=$(git config user.name || true)
+	[ -n "$email" ] || email=$(git config user.email || true)
+
+	if [ "$name" != "$EXPECTED_NAME" ] || [ "$email" != "$EXPECTED_EMAIL" ]; then
+		fail "$(printf '%s is %s <%s>, expected %s <%s>' \
+			"$role" "$name" "$email" "$EXPECTED_NAME" "$EXPECTED_EMAIL")"
+	fi
+done
+
+# Attribution trailers, in any casing.
+if grep -Eiq '^[[:space:]]*(co-authored-by|signed-off-by|assisted-by|reviewed-by|helped-by)[[:space:]]*:' \
+	"$MESSAGE_FILE"; then
+	fail "the message carries an attribution trailer. There is one author here."
+fi
+
+# Tool credits, which are the same problem written as prose. Only attribution
+# phrasing counts: a model named as a subject of the work, for example "gpt-4o", is
+# ordinary content in this repository and must still be allowed.
+if grep -Eiq 'generated (with|by)|co-?(written|created|developed) (with|by)|(written|created|authored|produced|implemented|assisted) (with|by) +(an? +)?(ai|llm|assistant|agent|claude|copilot|chatgpt|cursor|gemini|codex)' \
+	"$MESSAGE_FILE"; then
+	fail "the message credits a tool. Describe what changed and why, not what wrote it."
+fi
+
+if [ "$FAILED" -ne 0 ]; then
+	printf '\nSee .cursor/rules/solo-authorship.mdc for the rule this enforces.\n' >&2
+	exit 1
+fi
