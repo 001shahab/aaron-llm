@@ -99,8 +99,12 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install build twine
+      - name: Install locked dev dependencies
+        run: pip install --require-hashes -r requirements-dev.lock
+      - name: Install package without dependencies
+        run: pip install --no-deps -e .
       - name: Refuse to build with a price nobody verified
-        run: pip install --no-deps -e . && python -m aaron.registry --check
+        run: python -m aaron.registry --check
       - run: python -m build
       - run: twine check --strict dist/*
       - uses: actions/upload-artifact@v4

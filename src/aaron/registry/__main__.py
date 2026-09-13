@@ -6,7 +6,9 @@
 
 Prints every registry entry with its prices, region and the date the price was last
 verified, and exits non zero when a priced entry has never been verified, so a release
-script can refuse to ship a price nobody checked. Standard library only.
+script can refuse to ship a price nobody checked. The command itself adds nothing to the
+standard library, but importing it runs the package, so `httpx` and `pydantic` have to be
+installed for it to start.
 
 A wildcard entry such as ``openai/*`` carries capabilities and a region but no price,
 so it has nothing to verify and does not count against the check.
