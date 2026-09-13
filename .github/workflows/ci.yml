@@ -65,6 +65,19 @@ jobs:
       - name: Fail on any known vulnerability
         run: pip-audit --strict --requirement requirements-dev.lock
 
+  authorship:
+    name: single authorship
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the check reads every commit, not just the tip
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Assert one author and one committer, with no attribution trailers
+        run: python scripts/check_authorship.py
+
   dependency-policy:
     name: runtime dependency policy
     runs-on: ubuntu-latest

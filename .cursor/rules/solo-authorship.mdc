@@ -35,8 +35,29 @@ versioned, so it survives a fresh clone, but each clone has to point git at it o
 git config core.hooksPath .githooks
 ```
 
-The check is also worth running by hand after a rebase, which does not fire the hook
-for commits it replays unchanged.
+`scripts/check_authorship.py` checks the commits that actually exist rather than the
+ones passing through a hook, so it catches anything added with `--no-verify`, in a clone
+without `core.hooksPath` set, or by a rebase that replays a commit unchanged. CI runs it
+on every push with full history.
+
+```sh
+python3 scripts/check_authorship.py
+```
+
+## Where the trailer comes from
+
+Cursor appends `Co-authored-by: Cursor <cursoragent@cursor.com>` at the tooling level,
+after the message is written and before the hook runs, so a rule cannot prevent it. Turn
+it off at the source:
+
+- **IDE agent**: Cursor Settings > Git & Pull Requests > Attribution (older versions:
+  Agent > Attribution). Turn off commit attribution, and PR attribution too.
+- **CLI agent**: `~/.cursor/cli-config.json` with
+  `{"attribution": {"attributeCommitsToAgent": false, "attributePRsToAgent": false}}`.
+- On an Enterprise plan, a team level setting can override both, and only an admin can
+  change it.
+
+The hook strips the trailer regardless, which is why it exists.
 
 ## Verification before pushing
 

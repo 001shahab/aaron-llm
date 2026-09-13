@@ -40,12 +40,15 @@ ruff format . && ruff check .
 mypy --strict src/aaron
 pytest --cov=aaron --cov-report=term-missing --cov-fail-under=90
 python3 scripts/check_dependencies.py
+python3 scripts/check_authorship.py
 ```
 
-The last one is the unusual one. It fails the build if a runtime dependency other than
+The fourth one is the unusual one. It fails the build if a runtime dependency other than
 `httpx` and `pydantic` appears, if any vendor SDK or analytics package is imported
 anywhere, if a provider file exceeds 400 lines, or if the library exceeds 4000
-implementation lines. `docs/decisions.md` explains how that last number is counted.
+implementation lines. `docs/decisions.md` explains how that last number is counted. The fifth asserts that
+every commit and tag in the history has one author and one committer, both
+Prof. Shahab Anbarjafari, and carries no attribution trailer.
 
 ## Rules that will not bend
 
