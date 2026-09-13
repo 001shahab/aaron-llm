@@ -205,8 +205,8 @@ Structured, not a sentence to parse:
 try:
     client.chat("openai/gpt-4o", "Hello")
 except PolicyViolation as violation:
-    violation.rule    # 'residency'
-    violation.model   # 'openai/gpt-4o'
+    violation.rule  # 'residency'
+    violation.model  # 'openai/gpt-4o'
     violation.detail  # a sentence a compliance reader can act on
 ```
 

@@ -20,16 +20,16 @@ read but should not import:
 
 ```python
 from aaron import (
-    Aaron,          # synchronous client
-    AsyncAaron,     # the same surface, awaitable
-    Message,        # one turn of a conversation, with optional images and documents
-    Policy,         # what a call must satisfy before it may leave the process
-    Tool,           # a function the model may ask you to run
-    Response,       # what came back: text, tool_calls, usage, cost, audit_id, raw
-    JsonlSink,      # append one JSON object per call to a file
-    CallbackSink,   # hand each record to your own function
+    Aaron,  # synchronous client
+    AsyncAaron,  # the same surface, awaitable
+    Message,  # one turn of a conversation, with optional images and documents
+    Policy,  # what a call must satisfy before it may leave the process
+    Tool,  # a function the model may ask you to run
+    Response,  # what came back: text, tool_calls, usage, cost, audit_id, raw
+    JsonlSink,  # append one JSON object per call to a file
+    CallbackSink,  # hand each record to your own function
     PolicyViolation,
-    AaronError,     # the base of every error Aaron raises
+    AaronError,  # the base of every error Aaron raises
 )
 ```
 

@@ -121,8 +121,10 @@ window with a reason, and turn it off again.
 ```python
 from aaron import Aaron, CallbackSink
 
+
 def to_our_pipeline(record):
     logger.info("llm_call", extra=record.model_dump(mode="json"))
+
 
 client = Aaron(audit=CallbackSink(to_our_pipeline))
 ```

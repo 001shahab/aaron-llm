@@ -83,9 +83,7 @@ client.chat(
     "google/gemini-2.5-pro",
     prompt,
     provider_options={
-        "safetySettings": [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"}
-        ]
+        "safetySettings": [{"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"}]
     },
 )
 
