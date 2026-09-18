@@ -265,12 +265,21 @@ class TestShippedFile:
         for provider in ("openai", "anthropic", "google", "ollama", "openai_compat"):
             assert f"{provider}/*" in models
 
-    def test_every_ollama_entry_is_local_and_free(self) -> None:
+    def test_every_local_ollama_entry_is_local_and_free(self) -> None:
         for name, info in dict(default_registry()).items():
-            if not name.startswith("ollama/"):
+            if not name.startswith("ollama/") or name.endswith(":cloud"):
                 continue
             assert info.provider_region == "local", name
             assert info.input_usd_per_mtok in (0.0, None), name
+
+    def test_an_ollama_cloud_entry_is_priced_and_has_no_region(self) -> None:
+        # A cloud model runs on ollama.com, so it is neither free nor local, and
+        # Ollama routes between continents for capacity. No region means a residency
+        # rule rejects it instead of assuming where the data went.
+        info = default_registry().lookup("ollama/glm-5.1:cloud")
+        assert info.priced
+        assert info.provider_region is None
+        assert default_registry().region("ollama/llama4:latest") == "local"
 
     def test_vision_is_claimed_only_where_it_exists(self) -> None:
         registry = default_registry()

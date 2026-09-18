@@ -15,6 +15,19 @@
 #
 # Keys may use a trailing '*' glob. The longest matching key wins.
 
+openai/gpt-5.6-luna:
+  context_window: 1050000
+  max_output_tokens: 128000
+  input_usd_per_mtok: 0.20
+  output_usd_per_mtok: 1.20
+  cached_input_usd_per_mtok: 0.02
+  capabilities: [tools, vision, json_schema, json_mode, streaming, thinking]
+  provider_region: us
+  last_verified: "2026-09-18"
+  # Reasoning effort defaults to medium. Send provider_options={"reasoning_effort":
+  # "low"} for the cheap, fast setting. A prompt over 272k input tokens is billed at
+  # twice the input rate and 1.5x the output rate, which this flat price does not model.
+
 openai/gpt-4o:
   context_window: 128000
   max_output_tokens: 16384
@@ -79,6 +92,17 @@ openai/*:
   capabilities: [tools, vision, json_schema, json_mode, streaming]
   provider_region: us
 
+anthropic/claude-opus-5:
+  context_window: 1000000
+  max_output_tokens: 128000
+  input_usd_per_mtok: 5.00
+  output_usd_per_mtok: 25.00
+  cached_input_usd_per_mtok: 0.50
+  capabilities: [tools, vision, documents, json_schema, json_mode, streaming, thinking]
+  provider_region: us
+  last_verified: "2026-09-18"
+  # US only inference is available at 1.1x these rates, which is a different endpoint.
+
 anthropic/claude-sonnet-4-5:
   context_window: 200000
   max_output_tokens: 64000
@@ -123,6 +147,18 @@ anthropic/*:
   capabilities: [tools, vision, documents, json_schema, json_mode, streaming]
   provider_region: us
 
+google/gemini-3.8-flash:
+  context_window: 1048576
+  max_output_tokens: 65536
+  input_usd_per_mtok: 0.75
+  output_usd_per_mtok: 3.75
+  cached_input_usd_per_mtok: 0.075
+  capabilities: [tools, vision, documents, json_schema, json_mode, streaming, thinking]
+  provider_region: us
+  last_verified: "2026-09-18"
+  # Introductory price until 2026-12-31. It doubles to 1.50 / 7.50 on 2027-01-01, so
+  # this entry is wrong from that date until someone verifies it again.
+
 google/gemini-2.5-pro:
   context_window: 1048576
   max_output_tokens: 65536
@@ -165,6 +201,29 @@ ollama/*:
   provider_region: local
   last_verified: "2026-09-01"
 
+ollama/llama4*:
+  context_window: 10485760
+  capabilities: [tools, vision, json_schema, json_mode, streaming]
+  input_usd_per_mtok: 0.0
+  output_usd_per_mtok: 0.0
+  provider_region: local
+  last_verified: "2026-09-18"
+  # llama4:latest is the 16x17b Scout build. The 10M window is the model's; the
+  # window you actually get is whatever num_ctx the local daemon was given.
+
+# Ollama Cloud. The model runs on ollama.com, not on this machine, so the cost is
+# real and the region is deliberately absent: Ollama hosts primarily in the United
+# States but may route to Europe or Singapore for capacity, and a residency rule
+# must reject that rather than guess. Declare provider_region yourself with
+# Aaron(model_registry=...) if your contract with Ollama pins a region.
+ollama/glm-5.1:cloud:
+  context_window: 198000
+  input_usd_per_mtok: 1.00
+  output_usd_per_mtok: 3.20
+  cached_input_usd_per_mtok: 0.20
+  capabilities: [tools, json_schema, json_mode, streaming, thinking]
+  last_verified: "2026-09-18"
+
 ollama/llama3.1*:
   context_window: 131072
   capabilities: [tools, json_schema, json_mode, streaming]
@@ -188,6 +247,21 @@ ollama/llava*:
   output_usd_per_mtok: 0.0
   provider_region: local
   last_verified: "2026-09-01"
+
+xai/grok-4.6:
+  context_window: 500000
+  input_usd_per_mtok: 2.00
+  output_usd_per_mtok: 6.00
+  cached_input_usd_per_mtok: 0.50
+  capabilities: [tools, vision, json_schema, json_mode, streaming, thinking]
+  provider_region: us
+  last_verified: "2026-09-18"
+  # Reasoning effort defaults to high. A prompt of 200k tokens or more is billed at
+  # double these rates for the whole request, which this flat price does not model.
+
+xai/*:
+  capabilities: [tools, vision, json_schema, json_mode, streaming, thinking]
+  provider_region: us
 
 # An OpenAI compatible endpoint could be anywhere and cost anything, so no region
 # and no price are declared. A policy with a residency requirement will reject it

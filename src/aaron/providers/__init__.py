@@ -131,6 +131,7 @@ _BUILTIN: dict[str, tuple[str, str]] = {
     "anthropic": (".anthropic", "AnthropicProvider"),
     "google": (".google", "GoogleProvider"),
     "ollama": (".ollama", "OllamaProvider"),
+    "xai": (".xai", "XAIProvider"),
     "openai_compat": (".openai_compat", "OpenAICompatProvider"),
 }
 

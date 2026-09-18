@@ -16,7 +16,8 @@ can review the others quickly: name and metadata, `build_request`, `parse_respon
 | `openai` | `POST {base_url}/chat/completions` | `Authorization: Bearer …` | `OPENAI_API_KEY` |
 | `anthropic` | `POST {base_url}/messages` | `x-api-key` | `ANTHROPIC_API_KEY` |
 | `google` | `POST {base_url}/models/{model}:generateContent` | `x-goog-api-key` | `GOOGLE_API_KEY` |
-| `ollama` | `POST {base_url}/api/chat` | none | none |
+| `ollama` | `POST {base_url}/api/chat` | `Authorization: Bearer …` if a key is set, which is how Ollama Cloud is reached | `OLLAMA_API_KEY` |
+| `xai` | `POST {base_url}/chat/completions` | `Authorization: Bearer …` | `XAI_API_KEY` |
 | `openai_compat` | `POST {base_url}/chat/completions` | `Authorization: Bearer …` if a key is set | `OPENAI_COMPAT_API_KEY` |
 
 | Provider | Tools | Streaming | Vision | PDF | Region |
@@ -24,7 +25,8 @@ can review the others quickly: name and metadata, `build_request`, `parse_respon
 | `openai` | yes | SSE | yes | yes, as a base64 file part | `us` |
 | `anthropic` | yes | SSE, typed events | yes | yes, with a beta header added only when a document is present | `us` |
 | `google` | yes | SSE | yes | yes, as `inline_data` | `us` |
-| `ollama` | yes | NDJSON | model dependent | no | `local` |
+| `ollama` | yes | NDJSON | model dependent | no | `local`, and unknown for a `:cloud` model, so a residency rule rejects it |
+| `xai` | yes | SSE | yes | no | `us` |
 | `openai_compat` | endpoint dependent | SSE | endpoint dependent | endpoint dependent | unknown, so a residency rule rejects it |
 
 `google` streams with `:streamGenerateContent?alt=sse`. `ollama` is the only provider
