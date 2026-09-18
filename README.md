@@ -2,8 +2,8 @@
 
 **One client for every model, with a policy and an audit trail.**
 
-Aaron is a small, auditable Python client that talks to OpenAI, Anthropic, Google
-and Ollama through one interface, and records what happened on every call.
+Aaron is a small, auditable Python client that talks to OpenAI, Anthropic, Google,
+xAI and Ollama through one interface, and records what happened on every call.
 
 ```sh
 pip install aaron-llm
@@ -25,25 +25,25 @@ in an afternoon, which is the point.
 No API key needed. [Install Ollama](https://ollama.com/download), then:
 
 ```sh
-ollama pull llama3.1
+ollama pull llama4
 ```
 
 ```python
 from aaron import Aaron
 
 client = Aaron()
-reply = client.chat("ollama/llama3.1", "Summarise the EU AI Act in one sentence.")
+reply = client.chat("ollama/llama4:latest", "Summarise the EU AI Act in one sentence.")
 print(reply.text)
 print(reply.usage.total_tokens, "tokens,", f"${reply.cost.usd:.4f}")
 
-for event in client.stream("ollama/llama3.1", "Write a haiku about Tartu."):
+for event in client.stream("ollama/llama4:latest", "Write a haiku about Tartu."):
     if event.type == "text":
         print(event.text, end="", flush=True)
 ```
 
-Swap the model string for `openai/gpt-4o`, `anthropic/claude-sonnet-4-5` or
-`google/gemini-2.5-pro` and set the matching environment variable. Nothing else in
-your code changes.
+Swap the model string for `openai/gpt-5.6-luna`, `anthropic/claude-opus-5`,
+`google/gemini-3.8-flash` or `xai/grok-4.6` and set the matching environment
+variable. Nothing else in your code changes.
 
 <details>
 <summary>The rest of the surface, in one block</summary>
@@ -56,7 +56,7 @@ client = Aaron()
 
 # Multi part messages, tools, and a provider specific escape hatch
 reply = client.chat(
-    model="anthropic/claude-sonnet-4-5",
+    model="anthropic/claude-opus-5",
     messages=[
         Message.system("You are a careful assistant."),
         Message.user("What is in this chart?", images=["./chart.png"]),
@@ -76,23 +76,23 @@ class Invoice(BaseModel):
     total: float
 
 
-invoice = client.extract("google/gemini-2.5-pro", "Parse this: ...", schema=Invoice)
+invoice = client.extract("google/gemini-3.8-flash", "Parse this: ...", schema=Invoice)
 
 # Short names for long model strings
-client.alias("fast", "ollama/llama3.1:8b")
-client.alias("smart", "anthropic/claude-sonnet-4-5")
+client.alias("fast", "ollama/llama4:latest")
+client.alias("smart", "anthropic/claude-opus-5")
 reply = client.chat("fast", "Hello")
 
 # Async, including a concurrency limited batch
 aclient = AsyncAaron()
-reply = await aclient.chat("openai/gpt-4o", "Hello")
+reply = await aclient.chat("openai/gpt-5.6-luna", "Hello")
 results = await aclient.batch(
-    [{"model": "openai/gpt-4o", "messages": q} for q in questions],
+    [{"model": "openai/gpt-5.6-luna", "messages": q} for q in questions],
     concurrency=8,
 )  # list[Response | AaronError], in input order, exceptions captured not raised
 
 # See exactly what would go over the wire, and send nothing
-print(client.dry_run("openai/gpt-4o", "Hello").body)
+print(client.dry_run("openai/gpt-5.6-luna", "Hello").body)
 ```
 
 </details>
@@ -101,11 +101,26 @@ print(client.dry_run("openai/gpt-4o", "Hello").body)
 
 | Model string | Endpoint | Tools | Streaming | Vision | Documents | Key |
 | --- | --- | :-: | :-: | :-: | :-: | --- |
-| `openai/gpt-4o` | `POST /v1/chat/completions` | yes | yes | yes | PDF | `OPENAI_API_KEY` |
-| `anthropic/claude-sonnet-4-5` | `POST /v1/messages` | yes | yes | yes | PDF | `ANTHROPIC_API_KEY` |
-| `google/gemini-2.5-pro` | `generateContent` | yes | yes | yes | PDF | `GOOGLE_API_KEY` |
-| `ollama/llama3.1:8b` | `POST /api/chat` | yes | yes | model dependent | no | none |
+| `openai/gpt-5.6-luna` | `POST /v1/chat/completions` | yes | yes | yes | PDF | `OPENAI_API_KEY` |
+| `anthropic/claude-opus-5` | `POST /v1/messages` | yes | yes | yes | PDF | `ANTHROPIC_API_KEY` |
+| `google/gemini-3.8-flash` | `generateContent` | yes | yes | yes | PDF | `GOOGLE_API_KEY` |
+| `xai/grok-4.6` | `POST /v1/chat/completions` | yes | yes | yes | no | `XAI_API_KEY` |
+| `ollama/llama4:latest` | `POST /api/chat` | yes | yes | model dependent | no | none |
+| `ollama/glm-5.1:cloud` | `POST /api/chat` on `ollama.com` | yes | yes | no | no | `OLLAMA_API_KEY` |
 | `openai_compat/<model>` | your `base_url` | yes | yes | endpoint dependent | endpoint dependent | optional |
+
+Ollama's cloud models run on `ollama.com` rather than on your machine, so they need
+an endpoint and a key, and the registry deliberately declares no region for them:
+Ollama hosts primarily in the United States but may route elsewhere for capacity, so
+a residency rule rejects them until you declare a region yourself.
+
+```python
+client = Aaron(
+    base_urls={"ollama": "https://ollama.com"},
+    api_keys={"ollama": os.environ["OLLAMA_API_KEY"]},
+)
+reply = client.chat("ollama/glm-5.1:cloud", "Hello")
+```
 
 `openai_compat` covers Groq, Mistral, Together, DeepSeek, Fireworks, OpenRouter,
 vLLM, LM Studio and llama.cpp's server without five more provider files. Give it an
@@ -139,14 +154,14 @@ policy = Policy(
     max_usd_per_call=0.50,
     max_input_tokens=100_000,
     require_capabilities=["streaming"],
-    fallback=["ollama/llama3.1:8b"],  # tried in order, re evaluated against every rule
+    fallback=["ollama/llama4:latest"],  # tried in order, re evaluated against every rule
     redactors=[EmailRedactor(), RegexRedactor(r"\b\d{11}\b", "[ID]")],
     on_violation="fallback",
 )
 
 client = Aaron(policy=policy)
-reply = client.chat("anthropic/claude-sonnet-4-5", "Contact me at ada@example.com")
-# anthropic is processed in the US, so this runs on the local llama3.1 instead,
+reply = client.chat("anthropic/claude-opus-5", "Contact me at ada@example.com")
+# anthropic is processed in the US, so this runs on the local llama4 instead,
 # and the email address never leaves the process.
 ```
 
@@ -154,10 +169,10 @@ A refusal is a typed, structured exception, not a string to parse:
 
 ```python
 try:
-    client.chat("openai/gpt-4o", "Hello")
+    client.chat("openai/gpt-5.6-luna", "Hello")
 except PolicyViolation as violation:
     print(violation.rule)  # 'residency'
-    print(violation.detail)  # 'openai/gpt-4o is processed in region 'us', which does not ...'
+    print(violation.detail)  # 'openai/gpt-5.6-luna is processed in region 'us', which ...'
 ```
 
 An unknown processing region is **rejected**, never assumed compliant. Policy also
@@ -179,7 +194,7 @@ from aaron import Aaron, JsonlSink
 
 client = Aaron(audit=JsonlSink("calls.jsonl"))  # record_content=False by default
 client.audit.tag(tenant="acme", purpose="support")
-reply = client.chat("ollama/llama3.1", "Hello", tags={"ticket": "4417"})
+reply = client.chat("ollama/llama4:latest", "Hello", tags={"ticket": "4417"})
 print(reply.audit_id)  # ties the response back to its record
 ```
 
@@ -188,7 +203,7 @@ One line of `calls.jsonl`, reformatted:
 ```json
 {
   "id": "6f1c0e2a-...", "timestamp": "2026-09-12T21:04:11.882Z",
-  "model_requested": "ollama/llama3.1", "model_resolved": "llama3.1",
+  "model_requested": "ollama/llama4:latest", "model_resolved": "llama4:latest",
   "provider": "ollama", "provider_region": "local", "base_url": "http://localhost:11434",
   "outcome": "ok", "error_type": null,
   "usage": {"input_tokens": 26, "output_tokens": 298, "cached_input_tokens": 0, "reasoning_tokens": 0},
@@ -224,7 +239,7 @@ Be clear about what you need before choosing.
 **[LiteLLM](https://github.com/BerriAI/litellm) does more.** A hundred providers,
 embeddings, images, audio, rerank, a proxy server with keys and budgets and a UI, and
 a large community. If you want breadth, or a gateway your whole company routes
-through, use LiteLLM. Aaron has five providers, chat only, and no server.
+through, use LiteLLM. Aaron has six providers, chat only, and no server.
 
 **[Bifrost](https://github.com/maximhq/bifrost) is faster.** It is a Go gateway built
 for throughput, with clustering and very low overhead per request. If your bottleneck

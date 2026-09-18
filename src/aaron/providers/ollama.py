@@ -33,6 +33,7 @@ from ..types import (
     ImagePart,
     Message,
     Response,
+    SecretValue,
     StopReason,
     TextPart,
     ToolCall,
@@ -54,7 +55,7 @@ class OllamaProvider(BaseProvider):
 
     name = "ollama"
     default_base_url = "http://localhost:11434"
-    env_key = ""
+    env_key = "OLLAMA_API_KEY"
     local = True
     requires_key = False
     wire = "ndjson"
@@ -112,8 +113,20 @@ class OllamaProvider(BaseProvider):
             url=f"{self.base_url(req)}/api/chat",
             headers={"content-type": "application/json", **req.extra_headers},
             body=merge_options(body, req.provider_options),
+            auth=self.auth(req),
             stream=stream,
         )
+
+    def auth(self, req: ChatRequest) -> dict[str, SecretValue]:
+        """A bearer token when there is one, which is how Ollama Cloud is reached.
+
+        A local server needs nothing, so a missing key is not an error. Pointing
+        ``base_url`` at ``https://ollama.com`` and setting ``OLLAMA_API_KEY`` runs a
+        cloud model such as ``glm-5.1:cloud`` through the same code path.
+        """
+        if req.api_key is None:
+            return {}
+        return {"authorization": SecretValue(f"Bearer {req.api_key.get()}")}
 
     def encode(self, message: Message) -> dict[str, Any]:
         """Encode one message. Images ride alongside the text, not inside it.

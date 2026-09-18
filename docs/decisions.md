@@ -140,8 +140,9 @@ calling code. A test pins the current inheritance so nobody assumes otherwise.
 Section 8 says each provider file stays under 400 lines and also makes `base.py` the
 home for shared logic. Those pull in opposite directions: every line moved into
 `base.py` to keep a provider small counts against `base.py`. The size check exempts
-`base.py` and `__init__.py`, which are shared infrastructure, and holds all five
-provider files to the limit. They are between 210 and 330 lines.
+`base.py` and `__init__.py`, which are shared infrastructure, and holds every
+provider file to the limit. They are between 40 and 330 lines: `xai.py` and
+`openai_compat.py` are subclasses that change an endpoint and a credential.
 
 ## 10. Redactors ship as three, not eight
 

@@ -1,4 +1,4 @@
-"""The contract every provider must satisfy, run against all five.
+"""The contract every provider must satisfy, run against all six.
 
 A new provider is only correct if it passes this file unchanged. That is the whole
 point of the abstraction: a caller who switches provider should not have to learn a
@@ -115,6 +115,7 @@ CASES = [
         load("google_tool_call"),
     ),
     Case("ollama", "ollama/llama3.1", load("ollama_chat"), OLLAMA_STREAM, load("ollama_tool_call")),
+    Case("xai", "xai/grok-4.6", load("openai_chat"), OPENAI_STREAM, load("openai_tool_call")),
     Case(
         "openai_compat",
         "openai_compat/some-model",
@@ -149,16 +150,19 @@ def build(case: Case, keys: dict[str, str], **kwargs: Any) -> Aaron:
 class TestEveryProviderIsRegistered:
     """The registry of providers itself."""
 
-    def test_the_five_documented_providers_are_present(self) -> None:
+    def test_the_six_documented_providers_are_present(self) -> None:
         assert set(available_providers()) == {
             "openai",
             "anthropic",
             "google",
             "ollama",
+            "xai",
             "openai_compat",
         }
 
-    @pytest.mark.parametrize("name", ["openai", "anthropic", "google", "ollama", "openai_compat"])
+    @pytest.mark.parametrize(
+        "name", ["openai", "anthropic", "google", "ollama", "xai", "openai_compat"]
+    )
     def test_a_provider_declares_the_whole_protocol(self, name: str) -> None:
         provider = get_provider(name)
         assert provider.name == name
